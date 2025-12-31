@@ -1,7 +1,7 @@
 import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -12,11 +12,26 @@ import { addBookToFirebase, isBookAlreadyAdded } from '@/utils/firebase-books';
 import { searchBookByISBN, type Book } from '@/utils/rakuten-api';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
+const SCAN_AREA_WIDTH = 300;
+const SCAN_AREA_HEIGHT = 150;
+
 export default function BarcodeScannerScreen() {
   const colorScheme = useColorScheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
+  const screenHeight = Dimensions.get('window').height;
+  const screenWidth = Dimensions.get('window').width;
+  // ヘッダーの高さ（paddingTop: 50 + paddingBottom: 20 + コンテンツの高さ約20px）
+  const headerHeight = 90;
+  // フッターの高さ（padding: 20 + テキストの高さ約20px）
+  const footerHeight = 60;
+  // scannerContainerの高さ（画面の高さからヘッダーとフッターを引いた高さ）
+  const scannerContainerHeight = screenHeight - headerHeight - footerHeight;
+  // マスクの高さを計算（scannerContainerの高さからスキャンエリアの高さを引いて2で割る）
+  // 2pxの余裕を持たせて、枠線内への侵入を防ぐ（上下それぞれ1pxずつ）
+  const maskTopHeight = Math.floor((scannerContainerHeight - SCAN_AREA_HEIGHT) / 2) - 1;
+  const maskSideWidth = (screenWidth - SCAN_AREA_WIDTH) / 2;
   // 状態変数（デバッグ用、UI表示用に保持）
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [lastRequestTime, setLastRequestTime] = useState<number>(0); // 最後にリクエストを送信した時刻
@@ -249,12 +264,23 @@ export default function BarcodeScannerScreen() {
         )}
         {!scanned && !loading && (
           <View style={styles.overlay}>
-            <View style={styles.scanArea}>
-              <View style={[styles.corner, styles.topLeft]} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
+            {/* 上部のマスク */}
+            <View style={[styles.maskTop, { height: maskTopHeight }]} />
+            {/* 中央のスキャンエリア */}
+            <View style={[styles.scanAreaContainer, { height: SCAN_AREA_HEIGHT }]}>
+              {/* 左側のマスク */}
+              <View style={[styles.maskSide, { width: maskSideWidth, height: SCAN_AREA_HEIGHT }]} />
+              <View style={[styles.scanArea, { width: SCAN_AREA_WIDTH, height: SCAN_AREA_HEIGHT }]}>
+                <View style={[styles.corner, styles.topLeft]} />
+                <View style={[styles.corner, styles.topRight]} />
+                <View style={[styles.corner, styles.bottomLeft]} />
+                <View style={[styles.corner, styles.bottomRight]} />
+              </View>
+              {/* 右側のマスク */}
+              <View style={[styles.maskSide, { width: maskSideWidth, height: SCAN_AREA_HEIGHT }]} />
             </View>
+            {/* 下部のマスク */}
+            <View style={[styles.maskBottom, { height: maskTopHeight }]} />
           </View>
         )}
       </View>
@@ -489,14 +515,33 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scanArea: {
-    width: 250,
-    height: 250,
+  maskTop: {
+    width: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    overflow: 'hidden',
+  },
+  maskBottom: {
+    width: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    overflow: 'hidden',
+  },
+  scanAreaContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     position: 'relative',
+    zIndex: 1,
+  },
+  maskSide: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  scanArea: {
+    position: 'relative',
+    backgroundColor: 'transparent',
   },
   corner: {
     position: 'absolute',

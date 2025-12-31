@@ -18,6 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { extractBaseTitle, getBooksBySeriesKey, getGroupedBooksRepresentatives } from '@/utils/book-series';
 import { getUserId } from '@/utils/firebase-auth';
 import { getBooksByUserIds, type BookData } from '@/utils/firebase-books';
 import { getUserFriends, type FriendRelation } from '@/utils/firebase-friends';
@@ -38,6 +39,8 @@ export default function FriendsScreen() {
   const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
+  const [showSeriesModal, setShowSeriesModal] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -108,27 +111,68 @@ export default function FriendsScreen() {
     return filtered;
   }, [friendBooks, selectedFriendId, searchQuery]);
 
+  // シリーズでグループ化された書籍リスト
+  const groupedFilteredBooks = useMemo(() => {
+    return getGroupedBooksRepresentatives(filteredBooks);
+  }, [filteredBooks]);
+
+  // 選択されたシリーズの本一覧
+  const selectedSeriesBooks = useMemo(() => {
+    if (!selectedSeriesKey) return [];
+    return getBooksBySeriesKey(filteredBooks, selectedSeriesKey);
+  }, [selectedSeriesKey, filteredBooks]);
+
+  // シリーズの基本タイトルを取得
+  const seriesBaseTitle = useMemo(() => {
+    if (!selectedSeriesKey || selectedSeriesBooks.length === 0) return '';
+    const firstBook = selectedSeriesBooks[0];
+    return extractBaseTitle(firstBook.title);
+  }, [selectedSeriesKey, selectedSeriesBooks]);
+
+  const handleBookPress = (item: FriendBook) => {
+    const seriesCount = (item as FriendBook & { _seriesCount?: number })._seriesCount;
+    const seriesKey = (item as FriendBook & { _seriesKey?: string })._seriesKey;
+    const hasSeries = seriesCount !== undefined && seriesCount > 1 && seriesKey;
+
+    if (hasSeries) {
+      // シリーズの場合はモーダルを表示
+      setSelectedSeriesKey(seriesKey);
+      setShowSeriesModal(true);
+    } else {
+      // 単体の場合は詳細ページに遷移
+      if (item.id) {
+        router.push({
+          pathname: '/book/[id]',
+          params: { id: item.id },
+        });
+      }
+    }
+  };
+
   const renderBookItem = ({ item }: { item: FriendBook }) => {
+    const seriesCount = (item as FriendBook & { _seriesCount?: number })._seriesCount;
+    const hasSeries = seriesCount !== undefined && seriesCount > 1;
+
     return (
       <Pressable
         style={({ pressed }) => [
           styles.bookItem,
           pressed && styles.bookItemPressed,
         ]}
-        onPress={() => {
-          if (item.id) {
-            router.push({
-              pathname: '/book/[id]',
-              params: { id: item.id },
-            });
-          }
-        }}>
+        onPress={() => handleBookPress(item)}>
         {item.imageUrl ? (
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.bookThumbnail}
-            resizeMode="cover"
-          />
+          <View style={styles.thumbnailContainer}>
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.bookThumbnail}
+              resizeMode="cover"
+            />
+            {hasSeries && (
+              <View style={styles.seriesBadge}>
+                <ThemedText style={styles.seriesBadgeText}>{seriesCount}</ThemedText>
+              </View>
+            )}
+          </View>
         ) : (
           <View
             style={[
@@ -158,6 +202,11 @@ export default function FriendsScreen() {
                 {item.title}
               </ThemedText>
             </View>
+            {hasSeries && (
+              <View style={styles.seriesBadge}>
+                <ThemedText style={styles.seriesBadgeText}>{seriesCount}</ThemedText>
+              </View>
+            )}
           </View>
         )}
       </Pressable>
@@ -213,7 +262,7 @@ export default function FriendsScreen() {
       );
     }
 
-    if (filteredBooks.length === 0) {
+    if (groupedFilteredBooks.length === 0) {
       return (
         <View style={styles.emptyContainer}>
           <MaterialIcons
@@ -266,7 +315,7 @@ export default function FriendsScreen() {
 
       {/* 本のリスト */}
       <FlatList
-        data={filteredBooks}
+        data={groupedFilteredBooks}
         renderItem={renderBookItem}
         keyExtractor={(item) => item.id || `${item.friendId}-${item.isbn}`}
         numColumns={3}
@@ -391,6 +440,101 @@ export default function FriendsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* シリーズ一覧モーダル */}
+      <Modal
+        visible={showSeriesModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowSeriesModal(false)}>
+        <View style={styles.seriesModalOverlay}>
+          <View
+            style={[
+              styles.seriesModalContent,
+              { backgroundColor: Colors[colorScheme ?? 'light'].background },
+            ]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>
+                {seriesBaseTitle || 'シリーズ一覧'}
+              </ThemedText>
+              <Pressable onPress={() => setShowSeriesModal(false)}>
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={Colors[colorScheme ?? 'light'].text}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              <FlatList
+                data={selectedSeriesBooks}
+                renderItem={({ item }) => (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.seriesBookItem,
+                      pressed && styles.bookItemPressed,
+                    ]}
+                    onPress={() => {
+                      setShowSeriesModal(false);
+                      if (item.id) {
+                        router.push({
+                          pathname: '/book/[id]',
+                          params: { id: item.id },
+                        });
+                      }
+                    }}>
+                    {item.imageUrl ? (
+                      <Image
+                        source={{ uri: item.imageUrl }}
+                        style={styles.seriesBookThumbnail}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View
+                        style={[
+                          styles.seriesBookThumbnailPlaceholder,
+                          {
+                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                          },
+                        ]}>
+                        <View style={styles.bookCardContent}>
+                          {item.author && (
+                            <ThemedText
+                              style={[
+                                styles.bookCardAuthor,
+                                {
+                                  color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                                },
+                              ]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail">
+                              {item.author}
+                            </ThemedText>
+                          )}
+                          <ThemedText
+                            style={styles.bookCardTitle}
+                            numberOfLines={4}
+                            ellipsizeMode="tail">
+                            {item.title}
+                          </ThemedText>
+                        </View>
+                      </View>
+                    )}
+                    <ThemedText style={styles.seriesBookTitle} numberOfLines={2}>
+                      {item.title}
+                    </ThemedText>
+                  </Pressable>
+                )}
+                keyExtractor={(item) => item.id || `${item.userId}-${item.isbn}`}
+                numColumns={3}
+                scrollEnabled={false}
+                columnWrapperStyle={styles.seriesRow}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -442,11 +586,41 @@ const styles = StyleSheet.create({
   bookItemPressed: {
     opacity: 0.6,
   },
+  thumbnailContainer: {
+    width: '100%',
+    height: '100%',
+    position: 'relative',
+  },
   bookThumbnail: {
     width: '100%',
     height: '100%',
     borderRadius: 8,
     backgroundColor: '#f0f0f0',
+  },
+  seriesBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#838A2D',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    paddingHorizontal: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  seriesBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   bookThumbnailPlaceholder: {
     width: '100%',
@@ -577,5 +751,64 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  seriesModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  seriesModalContent: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 600,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  seriesRow: {
+    justifyContent: 'flex-start',
+    paddingHorizontal: 4,
+  },
+  seriesBookItem: {
+    flex: 1,
+    margin: 4,
+    maxWidth: '31%',
+  },
+  seriesBookThumbnail: {
+    width: '100%',
+    aspectRatio: 2 / 3,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  seriesBookThumbnailPlaceholder: {
+    width: '100%',
+    aspectRatio: 2 / 3,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  seriesBookTitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 8,
+    textAlign: 'center',
   },
 });
