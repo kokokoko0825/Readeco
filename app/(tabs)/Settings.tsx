@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -349,58 +351,70 @@ export default function SettingsScreen() {
       <Modal
         visible={showFriendModal}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowFriendModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: Colors[colorScheme ?? 'light'].background },
-            ]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>フレンドを追加</ThemedText>
-              <Pressable onPress={() => setShowFriendModal(false)}>
-                <MaterialIcons
-                  name="close"
-                  size={24}
-                  color={Colors[colorScheme ?? 'light'].text}
+        <KeyboardAvoidingView
+          style={styles.modalOverlayFull}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+          <Pressable
+            style={styles.modalOverlayFull}
+            onPress={() => setShowFriendModal(false)}>
+            <Pressable
+              style={[
+                styles.modalContentFull,
+                { backgroundColor: Colors[colorScheme ?? 'light'].background },
+              ]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>フレンドを追加</ThemedText>
+                <Pressable onPress={() => setShowFriendModal(false)}>
+                  <MaterialIcons
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <View style={styles.modalBody}>
+                <ThemedText style={styles.inputLabel}>ユーザーID</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { 
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                      borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                    },
+                  ]}
+                  value={friendUserId}
+                  onChangeText={setFriendUserId}
+                  placeholder="フレンドのユーザーIDを入力"
+                  placeholderTextColor="#999"
+                  autoCapitalize="none"
                 />
-              </Pressable>
-            </View>
-            <View style={styles.modalBody}>
-              <ThemedText style={styles.inputLabel}>ユーザーID</ThemedText>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: Colors[colorScheme ?? 'light'].text, borderColor: '#E0E0E0' },
-                ]}
-                value={friendUserId}
-                onChangeText={setFriendUserId}
-                placeholder="フレンドのユーザーIDを入力"
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-              />
-              <ThemedText style={styles.inputHint}>
-                フレンドのユーザーIDを入力して追加してください
-              </ThemedText>
-            </View>
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowFriendModal(false)}>
-                <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleAddFriend}
-                disabled={saving}>
-                <ThemedText style={styles.saveButtonText}>
-                  {saving ? '追加中...' : '追加'}
+                <ThemedText style={styles.inputHint}>
+                  フレンドのユーザーIDを入力して追加してください
                 </ThemedText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
+              </View>
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={() => setShowFriendModal(false)}>
+                  <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.saveButton]}
+                  onPress={handleAddFriend}
+                  disabled={saving}>
+                  <ThemedText style={styles.saveButtonText}>
+                    {saving ? '追加中...' : '追加'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </ThemedView>
   );
@@ -534,6 +548,27 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     maxHeight: '80%',
+  },
+  modalOverlayFull: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContentFull: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
   },
   modalHeader: {
     flexDirection: 'row',
