@@ -7,6 +7,8 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getUserId } from '@/utils/firebase-auth';
+import { addBookToFirebase, isBookAlreadyAdded } from '@/utils/firebase-books';
 import { searchBookByISBN, type Book } from '@/utils/rakuten-api';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
@@ -24,6 +26,7 @@ export default function BarcodeScannerScreen() {
   const [showBookModal, setShowBookModal] = useState(false);
   const [showingAlert, setShowingAlert] = useState(false); // アラート表示中かどうか
   const [isRequesting, setIsRequesting] = useState(false); // リクエスト送信中かどうか
+  const [isSaving, setIsSaving] = useState(false); // 保存中かどうか
   const SCAN_COOLDOWN = 5000; // 5秒間のクールダウン（リクエスト数を減らすため延長）
   
   // 即座にチェックできるようにuseRefを使用
@@ -354,20 +357,90 @@ export default function BarcodeScannerScreen() {
                     <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
                   </Pressable>
                   <Pressable
-                    style={[styles.modalButton, styles.addButton]}
-                    onPress={() => {
-                      // TODO: 本棚に追加する処理を実装
-                      console.log('本を追加:', foundBook);
-                      setShowBookModal(false);
-                      setScanned(false);
-                      setFoundBook(null);
-                      setLastScannedISBN(''); // ISBNコードをリセット
-                      setIsRequesting(false); // リクエスト送信フラグをリセット
-                      lastScannedISBNRef.current = ''; // useRefもリセット
-                      isProcessingRef.current = false; // 処理中フラグをリセット
-                      router.back();
+                    style={[
+                      styles.modalButton,
+                      styles.addButton,
+                      isSaving && styles.addButtonDisabled,
+                    ]}
+                    disabled={isSaving}
+                    onPress={async () => {
+                      if (!foundBook || isSaving) return;
+
+                      setIsSaving(true);
+                      try {
+                        const userId = getUserId();
+                        if (!userId) {
+                          Alert.alert('エラー', 'ログインが必要です', [
+                            {
+                              text: 'OK',
+                              onPress: () => {
+                                setIsSaving(false);
+                              },
+                            },
+                          ]);
+                          return;
+                        }
+
+                        // 既に登録されているかチェック
+                        const alreadyAdded = await isBookAlreadyAdded(userId, foundBook.isbn);
+                        if (alreadyAdded) {
+                          Alert.alert('既に登録されています', 'この本は既に本棚に追加されています。', [
+                            {
+                              text: 'OK',
+                              onPress: () => {
+                                setShowBookModal(false);
+                                setScanned(false);
+                                setFoundBook(null);
+                                setLastScannedISBN('');
+                                setIsRequesting(false);
+                                lastScannedISBNRef.current = '';
+                                isProcessingRef.current = false;
+                                router.back();
+                              },
+                            },
+                          ]);
+                          return;
+                        }
+
+                        // Firebaseに保存
+                        await addBookToFirebase(foundBook, userId, foundBook.description);
+
+                        Alert.alert('追加完了', '本棚に追加しました。', [
+                          {
+                            text: 'OK',
+                            onPress: () => {
+                              setShowBookModal(false);
+                              setScanned(false);
+                              setFoundBook(null);
+                              setLastScannedISBN('');
+                              setIsRequesting(false);
+                              lastScannedISBNRef.current = '';
+                              isProcessingRef.current = false;
+                              router.back();
+                            },
+                          },
+                        ]);
+                      } catch (error) {
+                        console.error('Error adding book to Firebase:', error);
+                        Alert.alert(
+                          'エラー',
+                          '本の追加に失敗しました。\nもう一度お試しください。',
+                          [
+                            {
+                              text: 'OK',
+                              onPress: () => {
+                                setIsSaving(false);
+                              },
+                            },
+                          ]
+                        );
+                      } finally {
+                        setIsSaving(false);
+                      }
                     }}>
-                    <ThemedText style={styles.addButtonText}>本棚に追加</ThemedText>
+                    <ThemedText style={styles.addButtonText}>
+                      {isSaving ? '保存中...' : '本棚に追加'}
+                    </ThemedText>
                   </Pressable>
                 </View>
               </>
@@ -594,6 +667,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#838A2D',
+  },
+  addButtonDisabled: {
+    opacity: 0.6,
   },
   addButtonText: {
     color: '#fff',

@@ -19,6 +19,7 @@ interface RakutenBookItem {
   publisherName?: string;
   salesDate?: string;
   itemPrice?: number;
+  itemCaption?: string; // 商品説明（あらすじ）
 }
 
 interface RakutenApiResponse {
@@ -36,6 +37,7 @@ export interface Book {
   publisher?: string;
   publishDate?: string;
   price?: number;
+  description?: string; // あらすじ
 }
 
 // キャッシュ用のインターフェース
@@ -258,6 +260,7 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
       publisher: item.publisherName,
       publishDate: item.salesDate,
       price: item.itemPrice,
+      description: item.itemCaption, // あらすじ
     };
     
     // キャッシュに保存
@@ -324,6 +327,7 @@ export async function searchBooksByQuery(
       publisher: Item.publisherName,
       publishDate: Item.salesDate,
       price: Item.itemPrice,
+      description: Item.itemCaption, // あらすじ
     }));
   } catch (error) {
     console.error('Error fetching books from Rakuten API:', error);
