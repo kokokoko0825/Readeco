@@ -1,32 +1,123 @@
-import { StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function RegisterScreen() {
+  const colorScheme = useColorScheme();
+
+  const handleBarcodeScan = () => {
+    router.push('/(modals)/barcode-scanner');
+  };
+
+  const handleExternalImport = () => {
+    // TODO: 外部データインポート機能を実装
+    console.log('外部データをインポート');
+  };
+
+  const handleManualImport = () => {
+    // TODO: 手動データインポート機能を実装
+    console.log('手動でデータをインポート');
+  };
+
+  const menuItems = [
+    {
+      id: 'barcode',
+      icon: (
+        <MaterialCommunityIcons
+          name="barcode-scan"
+          size={24}
+          color={Colors[colorScheme ?? 'light'].text}
+        />
+      ),
+      text: 'バーコードを読み込む',
+      onPress: handleBarcodeScan,
+    },
+    {
+      id: 'external',
+      icon: (
+        <MaterialIcons
+          name="download"
+          size={24}
+          color={Colors[colorScheme ?? 'light'].text}
+        />
+      ),
+      text: '外部データをインポート',
+      onPress: handleExternalImport,
+    },
+    {
+      id: 'manual',
+      icon: (
+        <MaterialIcons
+          name="edit"
+          size={24}
+          color={Colors[colorScheme ?? 'light'].text}
+        />
+      ),
+      text: '手動でデータをインポート',
+      onPress: handleManualImport,
+    },
+  ];
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">登録</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText>登録コンテンツがここに表示されます。</ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+    <ThemedView style={styles.container}>
+      <View style={styles.menuContainer}>
+        {menuItems.map((item, index) => (
+          <View key={item.id}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.menuItem,
+                pressed && styles.menuItemPressed,
+              ]}
+              onPress={item.onPress}>
+              <View style={styles.menuItemContent}>
+                <View style={styles.iconContainer}>{item.icon}</View>
+                <ThemedText style={styles.menuItemText}>{item.text}</ThemedText>
+              </View>
+            </Pressable>
+            {index < menuItems.length - 1 && <View style={styles.itemDivider} />}
+          </View>
+        ))}
+      </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+  },
+  menuContainer: {
+    paddingTop: 20,
+    paddingHorizontal: 20,
+  },
+  menuItem: {
+    paddingVertical: 16,
+  },
+  menuItemPressed: {
+    opacity: 0.6,
+  },
+  menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  iconContainer: {
+    marginRight: 16,
+    width: 24,
+    alignItems: 'center',
+  },
+  menuItemText: {
+    fontSize: 16,
+    flex: 1,
+  },
+  itemDivider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
   },
 });
 

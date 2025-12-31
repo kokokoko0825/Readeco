@@ -4,19 +4,38 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
+  const headerStyle = {
+    backgroundColor: Colors[colorScheme ?? 'light'].background,
+    borderBottomWidth: 1,
+    borderBottomColor: '#838A2D',
+  };
+
+  const headerTitleStyle = {
+    fontWeight: 'bold' as const,
+  };
+
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
+        tabBarActiveTintColor: '#FCFAF2',
+        tabBarInactiveTintColor: '#FCFAF2',
+        headerShown: true,
+        headerStyle,
+        headerTintColor: Colors[colorScheme ?? 'light'].text,
+        headerTitleStyle,
         tabBarButton: HapticTab,
+        tabBarStyle: {
+          backgroundColor: '#6A4028',
+          paddingVertical: 10,
+          paddingHorizontal: 10,
+        },
       }}>
       <Tabs.Screen
         name="index"

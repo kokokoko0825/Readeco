@@ -1,0 +1,604 @@
+import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
+import { router } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { searchBookByISBN, type Book } from '@/utils/rakuten-api';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
+export default function BarcodeScannerScreen() {
+  const colorScheme = useColorScheme();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const [loading, setLoading] = useState(false);
+  // 状態変数（デバッグ用、UI表示用に保持）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [lastRequestTime, setLastRequestTime] = useState<number>(0); // 最後にリクエストを送信した時刻
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [lastScannedISBN, setLastScannedISBN] = useState<string>(''); // 最後にスキャンしたISBNコード
+  const [foundBook, setFoundBook] = useState<Book | null>(null);
+  const [showBookModal, setShowBookModal] = useState(false);
+  const [showingAlert, setShowingAlert] = useState(false); // アラート表示中かどうか
+  const [isRequesting, setIsRequesting] = useState(false); // リクエスト送信中かどうか
+  const SCAN_COOLDOWN = 5000; // 5秒間のクールダウン（リクエスト数を減らすため延長）
+  
+  // 即座にチェックできるようにuseRefを使用
+  const lastScannedISBNRef = useRef<string>('');
+  const isProcessingRef = useRef<boolean>(false);
+  const lastRequestTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (permission && !permission.granted && !permission.canAskAgain) {
+      // 権限が拒否された場合の処理は既にUIで表示される
+    }
+  }, [permission]);
+
+  const handleBarCodeScanned = async (result: BarcodeScanningResult) => {
+    // 連続スキャンを防ぐ: 処理中は即座に無視（useRefで即座にチェック）
+    if (isProcessingRef.current || scanned || loading || isRequesting || showBookModal || showingAlert) {
+      return;
+    }
+
+    const { data } = result;
+    if (!data) return;
+
+    // ISBNを正規化（ハイフンを削除）
+    const isbn = data.replace(/[-\s]/g, '');
+
+    // 同じISBNコードが連続して読み取られた場合は無視（useRefで即座にチェック）
+    if (isbn === lastScannedISBNRef.current) {
+      return;
+    }
+
+    // クールダウン期間中は無視（最後のリクエスト完了後5秒以内は新しいリクエストを送信しない）
+    const now = Date.now();
+    if (lastRequestTimeRef.current > 0 && now - lastRequestTimeRef.current < SCAN_COOLDOWN) {
+      const remainingTime = Math.ceil((SCAN_COOLDOWN - (now - lastRequestTimeRef.current)) / 1000);
+      console.log(`クールダウン期間中です。あと${remainingTime}秒待ってから再度スキャンしてください。`);
+      return;
+    }
+
+    // 即座にブロックするため、useRefを先に設定
+    isProcessingRef.current = true;
+    lastScannedISBNRef.current = isbn;
+    
+    // 状態も更新
+    setLastScannedISBN(isbn);
+    setScanned(true);
+    setIsRequesting(true);
+    setLoading(true);
+
+    try {
+      // ISBNが有効かチェック（10桁または13桁）
+      if (!/^\d{10}(\d{3})?$/.test(isbn)) {
+        setShowingAlert(true);
+        Alert.alert('エラー', '有効なISBNコードを読み込んでください。', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setShowingAlert(false);
+              setScanned(false);
+              setLastScannedISBN(''); // ISBNコードをリセット
+              setIsRequesting(false); // リクエスト送信フラグをリセット
+              lastScannedISBNRef.current = ''; // useRefもリセット
+              isProcessingRef.current = false; // 処理中フラグをリセット
+            },
+          },
+        ]);
+        setLoading(false);
+        setIsRequesting(false); // リクエスト送信フラグをリセット
+        return;
+      }
+
+      // 楽天ブックスAPIで本を検索（キャッシュから取得する場合もある）
+      const book = await searchBookByISBN(isbn);
+      
+      // リクエスト完了時刻を記録（キャッシュから取得した場合でも記録）
+      const requestTime = Date.now();
+      lastRequestTimeRef.current = requestTime;
+      setLastRequestTime(requestTime);
+      
+      // 本の情報が正しく取得できたかチェック
+      if (book && book.title && book.author && book.isbn) {
+        // 本の情報が正しく取得できた場合
+        setFoundBook(book);
+        setShowBookModal(true);
+      } else {
+        // 本が見つからない、または情報が不完全な場合
+        setShowingAlert(true);
+        Alert.alert(
+          '本が見つかりませんでした',
+          '楽天ブックスのデータベースに該当する本が見つかりませんでした。\n\nISBNコードが正しいか、または別の方法で登録してください。',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setShowingAlert(false);
+                setScanned(false);
+                setLastScannedISBN(''); // ISBNコードをリセット
+                setIsRequesting(false); // リクエスト送信フラグをリセット
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      // リクエスト完了時刻を記録（エラー時も記録）
+      const requestTime = Date.now();
+      lastRequestTimeRef.current = requestTime;
+      setLastRequestTime(requestTime);
+      
+      console.error('Error searching book:', error);
+      const errorMessage = error instanceof Error ? error.message : '本の検索に失敗しました。';
+      
+      // ISBNを取得（エラーメッセージから抽出するか、変数から取得）
+      const isbn = result.data?.replace(/[-\s]/g, '') || '不明';
+      
+      // エラーメッセージに応じて適切なメッセージを表示
+      let alertMessage = '本の検索に失敗しました。';
+      if (errorMessage.includes('リクエストが多すぎます') || errorMessage.includes('リクエスト間隔が短すぎます')) {
+        alertMessage = 'リクエストが多すぎます。\nしばらく待ってから再度お試しください。';
+      } else if (errorMessage.includes('リクエストエラー')) {
+        alertMessage = `リクエストエラーが発生しました。\n\n${errorMessage}\n\nISBNコード「${isbn}」が正しいか確認してください。`;
+      } else if (errorMessage.includes('無効なISBN形式')) {
+        alertMessage = `無効なISBN形式です。\n\n読み取ったコード: ${isbn}\n\nもう一度スキャンしてください。`;
+      }
+      
+      setShowingAlert(true);
+      Alert.alert('エラー', alertMessage, [
+        {
+          text: 'OK',
+          onPress: () => {
+            setShowingAlert(false);
+            setScanned(false);
+            setLastScannedISBN(''); // ISBNコードをリセット
+            setIsRequesting(false); // リクエスト送信フラグをリセット
+          },
+        },
+      ]);
+    } finally {
+      setLoading(false);
+      setIsRequesting(false); // リクエスト送信フラグをリセット
+      isProcessingRef.current = false; // 処理中フラグをリセット
+    }
+  };
+
+  const handleClose = () => {
+    router.back();
+  };
+
+  if (!permission) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.centerContent}>
+          <ThemedText style={styles.statusText}>カメラの権限を確認中...</ThemedText>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  if (!permission.granted) {
+    return (
+      <ThemedView style={styles.container}>
+        <View style={styles.centerContent}>
+          <MaterialIcons
+            name="camera-alt"
+            size={64}
+            color={Colors[colorScheme ?? 'light'].icon}
+          />
+          <ThemedText style={styles.errorText}>カメラの権限が必要です</ThemedText>
+          <ThemedText style={styles.errorSubText}>
+            {Platform.OS === 'web'
+              ? 'バーコードをスキャンするにはカメラの権限が必要です。\nHTTPS環境でアクセスしていることを確認してください。'
+              : 'バーコードをスキャンするにはカメラの権限が必要です'}
+          </ThemedText>
+          {permission.canAskAgain && (
+            <Pressable style={styles.closeButton} onPress={requestPermission}>
+              <ThemedText style={styles.closeButtonText}>権限をリクエスト</ThemedText>
+            </Pressable>
+          )}
+          <Pressable style={[styles.closeButton, { marginTop: 12, backgroundColor: '#666' }]} onPress={handleClose}>
+            <ThemedText style={styles.closeButtonText}>閉じる</ThemedText>
+          </Pressable>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Pressable style={styles.closeIconButton} onPress={handleClose}>
+          <MaterialIcons name="close" size={28} color="#fff" />
+        </Pressable>
+        <ThemedText style={styles.headerTitle}>バーコードを読み取る</ThemedText>
+        <View style={styles.placeholder} />
+      </View>
+
+      <View style={styles.scannerContainer}>
+        <CameraView
+          onBarcodeScanned={
+            isProcessingRef.current ||
+            scanned ||
+            loading ||
+            isRequesting ||
+            showBookModal ||
+            showingAlert ||
+            (lastRequestTimeRef.current > 0 && Date.now() - lastRequestTimeRef.current < SCAN_COOLDOWN)
+              ? undefined
+              : handleBarCodeScanned
+          }
+          barcodeScannerSettings={{
+            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
+          }}
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+        />
+        {loading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#fff" />
+            <ThemedText style={styles.loadingText}>本を検索中...</ThemedText>
+          </View>
+        )}
+        {!scanned && !loading && (
+          <View style={styles.overlay}>
+            <View style={styles.scanArea}>
+              <View style={[styles.corner, styles.topLeft]} />
+              <View style={[styles.corner, styles.topRight]} />
+              <View style={[styles.corner, styles.bottomLeft]} />
+              <View style={[styles.corner, styles.bottomRight]} />
+            </View>
+          </View>
+        )}
+      </View>
+
+      {!scanned && (
+        <View style={styles.instructions}>
+          <ThemedText style={styles.instructionText}>
+            バーコードをカメラの中央に合わせてください
+          </ThemedText>
+        </View>
+      )}
+
+      {scanned && !loading && (
+        <View style={styles.rescanContainer}>
+          <Pressable
+            style={styles.rescanButton}
+            onPress={() => {
+              setScanned(false);
+              setLastRequestTime(0); // クールダウンをリセット
+              setLastScannedISBN(''); // ISBNコードをリセット
+              setIsRequesting(false); // リクエスト送信フラグをリセット
+              lastRequestTimeRef.current = 0; // useRefもリセット
+              lastScannedISBNRef.current = ''; // useRefもリセット
+              isProcessingRef.current = false; // 処理中フラグをリセット
+            }}>
+            <ThemedText style={styles.rescanButtonText}>もう一度スキャン</ThemedText>
+          </Pressable>
+        </View>
+      )}
+
+      {/* 本の情報を表示するモーダル */}
+      <Modal
+        visible={showBookModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowBookModal(false);
+          setScanned(false);
+          setLastScannedISBN(''); // ISBNコードをリセット
+          setIsRequesting(false); // リクエスト送信フラグをリセット
+          lastScannedISBNRef.current = ''; // useRefもリセット
+          isProcessingRef.current = false; // 処理中フラグをリセット
+        }}>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: Colors[colorScheme ?? 'light'].background },
+            ]}>
+            {foundBook && (
+              <>
+                {/* サムネイル画像 */}
+                {foundBook.imageUrl ? (
+                  <Image
+                    source={{ uri: foundBook.imageUrl }}
+                    style={styles.bookThumbnail}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={styles.bookThumbnailPlaceholder}>
+                    <MaterialIcons
+                      name="book"
+                      size={48}
+                      color={Colors[colorScheme ?? 'light'].icon}
+                    />
+                  </View>
+                )}
+
+                {/* タイトル */}
+                <ThemedText
+                  style={[
+                    styles.bookTitle,
+                    { color: Colors[colorScheme ?? 'light'].text },
+                  ]}>
+                  {foundBook.title}
+                </ThemedText>
+
+                {/* 作者名 */}
+                <ThemedText
+                  style={[
+                    styles.bookAuthor,
+                    { color: Colors[colorScheme ?? 'light'].text },
+                  ]}>
+                  {foundBook.author}
+                </ThemedText>
+
+                {/* ボタン */}
+                <View style={styles.modalButtons}>
+                  <Pressable
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => {
+                      setShowBookModal(false);
+                      setScanned(false);
+                      setFoundBook(null);
+                      setLastScannedISBN(''); // ISBNコードをリセット
+                      setIsRequesting(false); // リクエスト送信フラグをリセット
+                      lastScannedISBNRef.current = ''; // useRefもリセット
+                      isProcessingRef.current = false; // 処理中フラグをリセット
+                    }}>
+                    <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalButton, styles.addButton]}
+                    onPress={() => {
+                      // TODO: 本棚に追加する処理を実装
+                      console.log('本を追加:', foundBook);
+                      setShowBookModal(false);
+                      setScanned(false);
+                      setFoundBook(null);
+                      setLastScannedISBN(''); // ISBNコードをリセット
+                      setIsRequesting(false); // リクエスト送信フラグをリセット
+                      lastScannedISBNRef.current = ''; // useRefもリセット
+                      isProcessingRef.current = false; // 処理中フラグをリセット
+                      router.back();
+                    }}>
+                    <ThemedText style={styles.addButtonText}>本棚に追加</ThemedText>
+                  </Pressable>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  centerContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 50,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  closeIconButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  placeholder: {
+    width: 44,
+  },
+  scannerContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scanArea: {
+    width: 250,
+    height: 250,
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderColor: '#fff',
+  },
+  topLeft: {
+    top: 0,
+    left: 0,
+    borderTopWidth: 3,
+    borderLeftWidth: 3,
+  },
+  topRight: {
+    top: 0,
+    right: 0,
+    borderTopWidth: 3,
+    borderRightWidth: 3,
+  },
+  bottomLeft: {
+    bottom: 0,
+    left: 0,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+  },
+  bottomRight: {
+    bottom: 0,
+    right: 0,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    color: '#fff',
+    fontSize: 16,
+  },
+  instructions: {
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  instructionText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  rescanContainer: {
+    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+  },
+  rescanButton: {
+    backgroundColor: '#838A2D',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  rescanButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  closeButton: {
+    backgroundColor: '#838A2D',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  closeButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  statusText: {
+    color: '#fff',
+    fontSize: 16,
+  },
+  errorText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 20,
+    textAlign: 'center',
+  },
+  errorSubText: {
+    color: '#fff',
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    opacity: 0.8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  bookThumbnail: {
+    width: 150,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 16,
+    backgroundColor: '#f0f0f0',
+  },
+  bookThumbnailPlaceholder: {
+    width: 150,
+    height: 200,
+    borderRadius: 8,
+    marginBottom: 16,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  bookAuthor: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 24,
+    opacity: 0.7,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#E0E0E0',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  addButton: {
+    backgroundColor: '#838A2D',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
+
