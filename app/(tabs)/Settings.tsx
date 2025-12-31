@@ -1,30 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  Pressable,
-  StyleSheet,
-  View,
-  TextInput,
+  ActivityIndicator,
   Alert,
   Modal,
+  Pressable,
   ScrollView,
-  ActivityIndicator,
+  StyleSheet,
+  TextInput,
+  View,
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { getUserSettings, setUserSettings, type UserSettings } from '@/utils/firebase-users';
+import { copyToClipboard } from '@/utils/clipboard';
+import { getUserId, signOutUser } from '@/utils/firebase-auth';
 import {
-  getUserFriends,
   addFriend,
+  getUserFriends,
   removeFriend,
   searchUserByUserId,
   type FriendRelation,
 } from '@/utils/firebase-friends';
-import { getUserId } from '@/utils/firebase-auth';
-import { useAuth } from '@/contexts/AuthContext';
-import { signOutUser } from '@/utils/firebase-auth';
+import { getUserSettings, setUserSettings, type UserSettings } from '@/utils/firebase-users';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function SettingsScreen() {
@@ -160,6 +160,16 @@ export default function SettingsScreen() {
     ]);
   };
 
+  const handleCopyUserId = async () => {
+    if (!userId) return;
+    const success = await copyToClipboard(userId);
+    if (success) {
+      Alert.alert('コピー完了', 'ユーザーIDをクリップボードにコピーしました');
+    } else {
+      Alert.alert('エラー', 'ユーザーIDのコピーに失敗しました');
+    }
+  };
+
   const handleSignOut = async () => {
     Alert.alert('サインアウト', 'ログアウトしますか？', [
       {
@@ -208,9 +218,18 @@ export default function SettingsScreen() {
           {userId && (
             <View style={styles.userInfoContainer}>
               <ThemedText style={styles.userInfoLabel}>ユーザーID:</ThemedText>
-              <ThemedText style={styles.userInfoValue} numberOfLines={1}>
-                {userId}
-              </ThemedText>
+              <View style={styles.userIdContainer}>
+                <ThemedText style={styles.userInfoValue} numberOfLines={1}>
+                  {userId}
+                </ThemedText>
+                <Pressable style={styles.copyButton} onPress={handleCopyUserId}>
+                  <MaterialIcons
+                    name="content-copy"
+                    size={18}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
             </View>
           )}
           <Pressable
@@ -431,6 +450,16 @@ const styles = StyleSheet.create({
   userInfoValue: {
     fontSize: 14,
     flex: 1,
+  },
+  userIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  copyButton: {
+    padding: 4,
+    borderRadius: 4,
   },
   editButton: {
     flexDirection: 'row',

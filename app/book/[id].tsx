@@ -8,6 +8,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getBookById, deleteBook, type BookData } from '@/utils/firebase-books';
+import { getUserId } from '@/utils/firebase-auth';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function BookCardScreen() {
@@ -16,6 +17,12 @@ export default function BookCardScreen() {
   const [book, setBook] = useState<BookData | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  
+  // 現在のユーザーIDを取得
+  const currentUserId = getUserId();
+  
+  // 自分の本かどうかを判定
+  const isMyBook = book && currentUserId && book.userId === currentUserId;
 
   useEffect(() => {
     if (id) {
@@ -124,16 +131,20 @@ export default function BookCardScreen() {
           />
         </Pressable>
         <ThemedText style={styles.headerTitle}>書籍詳細</ThemedText>
-        <Pressable
-          style={styles.deleteIconButton}
-          onPress={handleDelete}
-          disabled={deleting}>
-          <MaterialIcons
-            name="delete-outline"
-            size={24}
-            color={deleting ? '#999' : Colors[colorScheme ?? 'light'].text}
-          />
-        </Pressable>
+        {isMyBook ? (
+          <Pressable
+            style={styles.deleteIconButton}
+            onPress={handleDelete}
+            disabled={deleting}>
+            <MaterialIcons
+              name="delete-outline"
+              size={24}
+              color={deleting ? '#999' : Colors[colorScheme ?? 'light'].text}
+            />
+          </Pressable>
+        ) : (
+          <View style={styles.deleteIconButton} />
+        )}
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -146,18 +157,53 @@ export default function BookCardScreen() {
               resizeMode="contain"
             />
           ) : (
-            <View style={styles.coverPlaceholder}>
-              <MaterialIcons
-                name="book"
-                size={64}
-                color={Colors[colorScheme ?? 'light'].icon}
-              />
+            <View
+              style={[
+                styles.coverPlaceholder,
+                {
+                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                },
+              ]}>
+              <View style={styles.coverCardContent}>
+                {book.author && (
+                  <ThemedText
+                    style={[
+                      styles.coverCardAuthor,
+                      {
+                        color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                      },
+                    ]}
+                    numberOfLines={2}
+                    ellipsizeMode="tail">
+                    {book.author}
+                  </ThemedText>
+                )}
+                <ThemedText
+                  style={styles.coverCardTitle}
+                  numberOfLines={8}
+                  ellipsizeMode="tail">
+                  {book.title}
+                </ThemedText>
+                {book.publisher && (
+                  <ThemedText
+                    style={[
+                      styles.coverCardPublisher,
+                      {
+                        color: colorScheme === 'dark' ? '#9BA1A6' : '#687076',
+                      },
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
+                    {book.publisher}
+                  </ThemedText>
+                )}
+              </View>
             </View>
           )}
         </View>
 
-        {/* タイトル */}
-        <ThemedText style={styles.title}>{book.title}</ThemedText>
+        {/* タイトル（画像がある場合のみ表示） */}
+        {book.imageUrl && <ThemedText style={styles.title}>{book.title}</ThemedText>}
 
         {/* 著者名 */}
         <ThemedText style={styles.author}>{book.author}</ThemedText>
@@ -324,9 +370,43 @@ const styles = StyleSheet.create({
     width: 200,
     height: 280,
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  coverCardContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+  coverCardAuthor: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  coverCardTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  coverCardPublisher: {
+    fontSize: 12,
+    fontWeight: '400',
+    textAlign: 'center',
+    marginTop: 'auto',
   },
   title: {
     fontSize: 24,

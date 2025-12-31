@@ -10,6 +10,9 @@
     "extra": {
       "eas": {
         "projectId": "your-project-id"
+      },
+      "router": {
+        "origin": false
       }
     },
     "newArchEnabled": true,
@@ -34,7 +37,8 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "bundler": "metro"
     },
     "plugins": [
       "expo-router",

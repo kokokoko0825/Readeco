@@ -49,6 +49,19 @@ function docToBookData(docSnap: QueryDocumentSnapshot<DocumentData>): BookData {
 }
 
 /**
+ * オブジェクトからundefined値を除外するヘルパー関数
+ */
+function removeUndefinedValues<T extends Record<string, any>>(obj: T): Partial<T> {
+  const result: Partial<T> = {};
+  for (const key in obj) {
+    if (obj[key] !== undefined) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+}
+
+/**
  * 書籍をFirebaseに追加
  */
 export async function addBookToFirebase(
@@ -64,10 +77,13 @@ export async function addBookToFirebase(
       description,
     };
 
-    const docRef = await addDoc(collection(db, 'books'), {
+    // undefined値を除外してFirestoreに保存
+    const firestoreData = removeUndefinedValues({
       ...bookData,
       addedAt: Timestamp.fromDate(bookData.addedAt),
     });
+
+    const docRef = await addDoc(collection(db, 'books'), firestoreData);
 
     return docRef.id;
   } catch (error) {
@@ -241,6 +257,57 @@ export async function isBookAlreadyAdded(
   } catch (error) {
     console.error('Error checking if book is already added:', error);
     return false;
+  }
+}
+
+/**
+ * 複数のユーザーの書籍一覧を取得（フレンドの本を取得するため）
+ */
+export async function getBooksByUserIds(userIds: string[]): Promise<BookData[]> {
+  try {
+    if (userIds.length === 0) {
+      return [];
+    }
+
+    // Firestoreの`in`クエリは最大10個の値までしか指定できないため、
+    // 10個ずつに分割してクエリを実行
+    const batchSize = 10;
+    const allBooks: BookData[] = [];
+
+    for (let i = 0; i < userIds.length; i += batchSize) {
+      const batch = userIds.slice(i, i + batchSize);
+      const q = query(
+        collection(db, 'books'),
+        where('userId', 'in', batch)
+      );
+
+      const querySnapshot = await getDocs(q);
+      const books = querySnapshot.docs.map(docToBookData);
+      allBooks.push(...books);
+    }
+
+    // クライアント側でソート（addedAtの降順）
+    allBooks.sort((a, b) => {
+      const dateA = a.addedAt.getTime();
+      const dateB = b.addedAt.getTime();
+      return dateB - dateA; // 降順
+    });
+
+    return allBooks;
+  } catch (error: any) {
+    console.error('Error fetching books by user IDs:', error);
+    
+    // インデックスエラーの場合、より詳細なメッセージを表示
+    if (error.code === 'failed-precondition' && error.message?.includes('index')) {
+      const errorMessage = 
+        'Firestoreのインデックスが必要です。\n\n' +
+        '以下のリンクからインデックスを作成してください：\n' +
+        (error.message.match(/https:\/\/[^\s]+/) || ['Firebase Console'])[0] +
+        '\n\nまたは、FIREBASE_INDEX_SETUP.mdを参照してください。';
+      throw new Error(errorMessage);
+    }
+    
+    throw new Error('書籍一覧の取得に失敗しました');
   }
 }
 

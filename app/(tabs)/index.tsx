@@ -118,12 +118,34 @@ export default function HomeScreen() {
             resizeMode="cover"
           />
         ) : (
-          <View style={styles.bookThumbnailPlaceholder}>
-            <MaterialIcons
-              name="book"
-              size={32}
-              color={Colors[colorScheme ?? 'light'].icon}
-            />
+          <View
+            style={[
+              styles.bookThumbnailPlaceholder,
+              {
+                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+              },
+            ]}>
+            <View style={styles.bookCardContent}>
+              {item.author && (
+                <ThemedText
+                  style={[
+                    styles.bookCardAuthor,
+                    {
+                      color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                    },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail">
+                  {item.author}
+                </ThemedText>
+              )}
+              <ThemedText
+                style={styles.bookCardTitle}
+                numberOfLines={4}
+                ellipsizeMode="tail">
+                {item.title}
+              </ThemedText>
+            </View>
           </View>
         )}
       </Pressable>
@@ -204,7 +226,7 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   row: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     paddingHorizontal: 8,
   },
   bookItem: {
@@ -226,12 +248,36 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 8,
-    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderStyle: 'dashed',
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  bookCardContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 6,
+  },
+  bookCardAuthor: {
+    fontSize: 9,
+    fontWeight: '500',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  bookCardTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   emptyContainer: {
     flex: 1,

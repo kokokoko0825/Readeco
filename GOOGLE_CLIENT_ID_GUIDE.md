@@ -127,3 +127,4 @@ EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=YOUR_ANDROID_CLIENT_ID_HERE
 - [Firebase Console](https://console.firebase.google.com/)
 - [OAuth 2.0 クライアント IDの作成](https://support.google.com/cloud/answer/6158849)
 
+

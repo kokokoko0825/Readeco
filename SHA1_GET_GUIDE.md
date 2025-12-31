@@ -117,3 +117,4 @@ keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androidd
 
 開発段階では、SHA-1がなくてもAndroid Client IDを作成できますが、後で追加することをおすすめします。
 
+

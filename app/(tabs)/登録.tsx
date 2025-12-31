@@ -21,8 +21,7 @@ export default function RegisterScreen() {
   };
 
   const handleManualImport = () => {
-    // TODO: 手動データインポート機能を実装
-    console.log('手動でデータをインポート');
+    router.push('/(modals)/manual-book-entry');
   };
 
   const menuItems = [

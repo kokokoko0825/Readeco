@@ -125,3 +125,4 @@ npx expo install expo-barcode-scanner expo-camera
 - [楽天ブックスAPI ドキュメント](https://webservice.rakuten.co.jp/api/booksbooksearch/)
 - [楽天API利用規約](https://webservice.rakuten.co.jp/api_terms/)
 
+

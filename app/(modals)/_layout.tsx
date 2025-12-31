@@ -8,7 +8,9 @@ export default function ModalsLayout() {
         headerShown: false,
       }}>
       <Stack.Screen name="barcode-scanner" />
+      <Stack.Screen name="manual-book-entry" />
     </Stack>
   );
 }
+
 

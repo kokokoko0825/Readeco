@@ -82,3 +82,4 @@ firebase deploy --only firestore:indexes
 - [Firestore インデックス](https://firebase.google.com/docs/firestore/query-data/indexing)
 - [Firebase Console](https://console.firebase.google.com/)
 
+

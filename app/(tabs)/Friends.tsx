@@ -1,25 +1,112 @@
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
+import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { getUserId } from '@/utils/firebase-auth';
+import { getBooksByUserIds, type BookData } from '@/utils/firebase-books';
+import { getUserFriends, type FriendRelation } from '@/utils/firebase-friends';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-// TODO: 実際のデータ構造に合わせて型を定義
-interface FriendBook {
-  id: string;
-  title: string;
-  author: string;
-  friendName: string;
-  // 他のプロパティを追加
+// フレンドの本の型（BookDataにフレンド情報を追加）
+interface FriendBook extends BookData {
+  friendDisplayName: string;
+  friendId: string;
 }
 
 export default function FriendsScreen() {
   const colorScheme = useColorScheme();
+  const { user } = useAuth();
+  const [friends, setFriends] = useState<FriendRelation[]>([]);
+  const [friendBooks, setFriendBooks] = useState<FriendBook[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // TODO: 実際のデータ取得ロジックに置き換え
-  const friendBooks: FriendBook[] = [];
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const userId = getUserId();
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      // フレンド一覧を取得
+      const friendsList = await getUserFriends(userId);
+      setFriends(friendsList);
+
+      // フレンドの本を取得
+      if (friendsList.length > 0) {
+        const friendIds = friendsList.map((f) => f.friendId);
+        const books = await getBooksByUserIds(friendIds);
+
+        // フレンド情報を本に追加
+        const booksWithFriendInfo: FriendBook[] = books.map((book) => {
+          const friend = friendsList.find((f) => f.friendId === book.userId);
+          return {
+            ...book,
+            friendDisplayName: friend?.friendDisplayName || '不明',
+            friendId: book.userId,
+          };
+        });
+
+        setFriendBooks(booksWithFriendInfo);
+      } else {
+        setFriendBooks([]);
+      }
+    } catch (error) {
+      console.error('Error loading friends data:', error);
+      Alert.alert('エラー', 'データの読み込みに失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // フィルターされた本のリスト
+  const filteredBooks = useMemo(() => {
+    let filtered = friendBooks;
+
+    // フレンドでフィルター
+    if (selectedFriendId) {
+      filtered = filtered.filter((book) => book.friendId === selectedFriendId);
+    }
+
+    // 検索クエリでフィルター
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (book) =>
+          book.title.toLowerCase().includes(query) ||
+          book.author.toLowerCase().includes(query) ||
+          book.friendDisplayName.toLowerCase().includes(query)
+      );
+    }
+
+    return filtered;
+  }, [friendBooks, selectedFriendId, searchQuery]);
 
   const renderBookItem = ({ item }: { item: FriendBook }) => {
     return (
@@ -29,58 +116,281 @@ export default function FriendsScreen() {
           pressed && styles.bookItemPressed,
         ]}
         onPress={() => {
-          // TODO: 本の詳細画面に遷移
-          console.log('Friend book pressed:', item.id);
+          if (item.id) {
+            router.push({
+              pathname: '/book/[id]',
+              params: { id: item.id },
+            });
+          }
         }}>
-        <View style={styles.bookItemContent}>
-          <MaterialIcons
-            name="book"
-            size={24}
-            color={Colors[colorScheme ?? 'light'].text}
-            style={styles.bookIcon}
+        {item.imageUrl ? (
+          <Image
+            source={{ uri: item.imageUrl }}
+            style={styles.bookThumbnail}
+            resizeMode="cover"
           />
-          <View style={styles.bookInfo}>
-            <ThemedText style={styles.bookTitle}>{item.title}</ThemedText>
-            <View style={styles.bookMeta}>
-              <ThemedText style={styles.bookAuthor}>{item.author}</ThemedText>
-              <ThemedText style={styles.friendName}>
-                {item.friendName}が登録
+        ) : (
+          <View
+            style={[
+              styles.bookThumbnailPlaceholder,
+              {
+                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+              },
+            ]}>
+            <View style={styles.bookCardContent}>
+              {item.author && (
+                <ThemedText
+                  style={[
+                    styles.bookCardAuthor,
+                    {
+                      color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                    },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail">
+                  {item.author}
+                </ThemedText>
+              )}
+              <ThemedText
+                style={styles.bookCardTitle}
+                numberOfLines={4}
+                ellipsizeMode="tail">
+                {item.title}
               </ThemedText>
             </View>
           </View>
-        </View>
+        )}
       </Pressable>
     );
   };
 
-  const renderSeparator = () => <View style={styles.itemDivider} />;
+  const renderEmptyState = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator
+            size="large"
+            color={Colors[colorScheme ?? 'light'].text}
+          />
+          <ThemedText style={styles.emptyText}>読み込み中...</ThemedText>
+        </View>
+      );
+    }
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <MaterialIcons
-        name="people-outline"
-        size={48}
-        color={Colors[colorScheme ?? 'light'].icon}
-      />
-      <ThemedText style={styles.emptyText}>
-        フレンドの登録した本がありません
-      </ThemedText>
-      <ThemedText style={styles.emptySubText}>
-        フレンドが本を登録するとここに表示されます
-      </ThemedText>
-    </View>
-  );
+    if (friends.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <MaterialIcons
+            name="people-outline"
+            size={48}
+            color={Colors[colorScheme ?? 'light'].icon}
+          />
+          <ThemedText style={styles.emptyText}>
+            フレンドが登録されていません
+          </ThemedText>
+          <ThemedText style={styles.emptySubText}>
+            設定ページからフレンドを追加してください
+          </ThemedText>
+        </View>
+      );
+    }
+
+    if (friendBooks.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <MaterialIcons
+            name="book"
+            size={48}
+            color={Colors[colorScheme ?? 'light'].icon}
+          />
+          <ThemedText style={styles.emptyText}>
+            フレンドの登録した本がありません
+          </ThemedText>
+          <ThemedText style={styles.emptySubText}>
+            フレンドが本を登録するとここに表示されます
+          </ThemedText>
+        </View>
+      );
+    }
+
+    if (filteredBooks.length === 0) {
+      return (
+        <View style={styles.emptyContainer}>
+          <MaterialIcons
+            name="search-off"
+            size={48}
+            color={Colors[colorScheme ?? 'light'].icon}
+          />
+          <ThemedText style={styles.emptyText}>
+            条件に一致する本が見つかりませんでした
+          </ThemedText>
+          <ThemedText style={styles.emptySubText}>
+            フィルターを変更して再度お試しください
+          </ThemedText>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
+  const selectedFriend = friends.find((f) => f.friendId === selectedFriendId);
 
   return (
     <ThemedView style={styles.container}>
+      
+      {/* フィルター選択部分 */}
+      <View style={styles.filterHeader}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.filterSelector,
+            {
+              backgroundColor: pressed
+                ? colorScheme === 'dark'
+                  ? '#2A2A2A'
+                  : 'rgba(0, 0, 0, 0.05)'
+                : 'transparent',
+            },
+          ]}
+          onPress={() => setShowFilterModal(true)}>
+          <ThemedText style={styles.filterText}>
+            {selectedFriend ? selectedFriend.friendDisplayName : '全て'}
+          </ThemedText>
+          <MaterialIcons
+            name="keyboard-arrow-down"
+            size={20}
+            color={Colors[colorScheme ?? 'light'].text}
+          />
+        </Pressable>
+      </View>
+
+      {/* 本のリスト */}
       <FlatList
-        data={friendBooks}
+        data={filteredBooks}
         renderItem={renderBookItem}
-        keyExtractor={(item) => item.id}
-        ItemSeparatorComponent={renderSeparator}
+        keyExtractor={(item) => item.id || `${item.friendId}-${item.isbn}`}
+        numColumns={3}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={renderEmptyState}
+        refreshing={loading}
+        onRefresh={loadData}
+        columnWrapperStyle={styles.row}
       />
+
+      {/* フィルターモーダル */}
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFilterModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: Colors[colorScheme ?? 'light'].background },
+            ]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>フィルター</ThemedText>
+              <Pressable onPress={() => setShowFilterModal(false)}>
+                <MaterialIcons
+                  name="close"
+                  size={24}
+                  color={Colors[colorScheme ?? 'light'].text}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView style={styles.modalBody}>
+              {/* 検索バー */}
+              <View style={styles.searchContainer}>
+                <MaterialIcons
+                  name="search"
+                  size={20}
+                  color={Colors[colorScheme ?? 'light'].text}
+                  style={styles.searchIcon}
+                />
+                <TextInput
+                  style={[
+                    styles.searchInput,
+                    { color: Colors[colorScheme ?? 'light'].text },
+                  ]}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  placeholder="タイトル、著者、フレンド名で検索"
+                  placeholderTextColor="#999"
+                />
+                {searchQuery.length > 0 && (
+                  <Pressable
+                    style={styles.clearSearchButton}
+                    onPress={() => setSearchQuery('')}>
+                    <MaterialIcons name="close" size={18} color="#999" />
+                  </Pressable>
+                )}
+              </View>
+
+              {/* フレンド一覧 */}
+              <ThemedText style={styles.filterSectionTitle}>フレンド</ThemedText>
+              <Pressable
+                style={[
+                  styles.friendOption,
+                  !selectedFriendId && {
+                    backgroundColor:
+                      colorScheme === 'dark' ? '#2A2A2A' : '#F0F0F0',
+                  },
+                ]}
+                onPress={() => {
+                  setSelectedFriendId(null);
+                }}>
+                <MaterialIcons
+                  name={!selectedFriendId ? 'radio-button-checked' : 'radio-button-unchecked'}
+                  size={20}
+                  color={!selectedFriendId ? '#838A2D' : Colors[colorScheme ?? 'light'].text}
+                />
+                <ThemedText style={styles.friendOptionText}>すべてのフレンド</ThemedText>
+              </Pressable>
+              {friends.map((friend) => (
+                <Pressable
+                  key={friend.id}
+                  style={[
+                    styles.friendOption,
+                    selectedFriendId === friend.friendId && {
+                      backgroundColor:
+                        colorScheme === 'dark' ? '#2A2A2A' : '#F0F0F0',
+                    },
+                  ]}
+                  onPress={() => {
+                    setSelectedFriendId(friend.friendId);
+                  }}>
+                  <MaterialIcons
+                    name={
+                      selectedFriendId === friend.friendId
+                        ? 'radio-button-checked'
+                        : 'radio-button-unchecked'
+                    }
+                    size={20}
+                    color={
+                      selectedFriendId === friend.friendId
+                        ? '#838A2D'
+                        : Colors[colorScheme ?? 'light'].text
+                    }
+                  />
+                  <ThemedText style={styles.friendOptionText}>
+                    {friend.friendDisplayName}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Pressable
+                style={[styles.modalButton, styles.applyButton]}
+                onPress={() => setShowFilterModal(false)}>
+                <ThemedText style={styles.applyButtonText}>適用</ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -89,45 +399,89 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  listContainer: {
+  header: {
+    alignItems: 'center',
     paddingTop: 20,
-    paddingHorizontal: 20,
+    paddingBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  filterHeader: {
+    alignItems: 'center',
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  filterSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  filterText: {
+    fontSize: 16,
+  },
+  listContainer: {
+    paddingTop: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 20,
+  },
+  row: {
+    justifyContent: 'flex-start',
+    paddingHorizontal: 8,
   },
   bookItem: {
-    paddingVertical: 16,
+    flex: 1,
+    margin: 4,
+    aspectRatio: 2 / 3, // 縦横比を2:3に設定（本の表紙の一般的な比率）
+    maxWidth: '31%', // 3列に配置するため、各アイテムの最大幅を約33%に設定
   },
   bookItemPressed: {
     opacity: 0.6,
   },
-  bookItemContent: {
-    flexDirection: 'row',
+  bookThumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  bookThumbnailPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  bookIcon: {
-    marginRight: 16,
+  bookCardContent: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 6,
   },
-  bookInfo: {
-    flex: 1,
-  },
-  bookTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+  bookCardAuthor: {
+    fontSize: 9,
+    fontWeight: '500',
     marginBottom: 4,
+    textAlign: 'center',
   },
-  bookMeta: {
-    gap: 2,
-  },
-  bookAuthor: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  friendName: {
-    fontSize: 12,
-    opacity: 0.6,
-  },
-  itemDivider: {
-    height: 1,
-    backgroundColor: '#E0E0E0',
+  bookCardTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    lineHeight: 14,
   },
   emptyContainer: {
     flex: 1,
@@ -145,5 +499,83 @@ const styles = StyleSheet.create({
     marginTop: 8,
     opacity: 0.7,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  modalBody: {
+    marginBottom: 20,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 24,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+  },
+  clearSearchButton: {
+    padding: 4,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  friendOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginBottom: 4,
+  },
+  friendOptionText: {
+    fontSize: 16,
+    marginLeft: 12,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  applyButton: {
+    backgroundColor: '#838A2D',
+  },
+  applyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
-
