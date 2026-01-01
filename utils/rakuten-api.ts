@@ -335,3 +335,25 @@ export async function searchBooksByQuery(
   }
 }
 
+/**
+ * 著者名で本を検索（著者名完全一致）
+ * @param author 著者名
+ * @param maxResults 最大結果数（デフォルト: 30）
+ * @returns 本の情報の配列（著者名が完全一致するもののみ）
+ */
+export async function searchBooksByAuthor(
+  author: string,
+  maxResults: number = 30
+): Promise<Book[]> {
+  try {
+    // まずキーワード検索で著者名を含む本を取得
+    const books = await searchBooksByQuery(author, maxResults);
+    
+    // 著者名が完全一致するもののみをフィルタリング
+    return books.filter(book => book.author === author);
+  } catch (error) {
+    console.error('Error fetching books by author:', error);
+    throw error;
+  }
+}
+
