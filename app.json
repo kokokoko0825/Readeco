@@ -38,7 +38,8 @@
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "lang": "ja"
     },
     "plugins": [
       "expo-router",

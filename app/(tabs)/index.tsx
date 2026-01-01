@@ -3,6 +3,7 @@ import type { Unsubscribe } from 'firebase/firestore';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -11,7 +12,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { extractBaseTitle, getBooksBySeriesKey, getGroupedBooksRepresentatives } from '@/utils/book-series';
 import { getUserId } from '@/utils/firebase-auth';
 import { subscribeUserBooks, type BookData } from '@/utils/firebase-books';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -203,7 +203,7 @@ export default function HomeScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialIcons
+      <Icon
         name="book"
         size={48}
         color={Colors[colorScheme ?? 'light'].icon}
@@ -232,7 +232,7 @@ export default function HomeScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.errorContainer}>
-          <MaterialIcons
+          <Icon
             name="error-outline"
             size={48}
             color={Colors[colorScheme ?? 'light'].icon}
@@ -335,7 +335,7 @@ export default function HomeScreen() {
                 {seriesBaseTitle || 'シリーズ一覧'}
               </ThemedText>
               <Pressable onPress={() => setShowSeriesModal(false)}>
-                <MaterialIcons
+                <Icon
                   name="close"
                   size={24}
                   color={Colors[colorScheme ?? 'light'].text}

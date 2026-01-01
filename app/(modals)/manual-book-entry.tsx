@@ -20,7 +20,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserId } from '@/utils/firebase-auth';
 import { addBookToFirebase } from '@/utils/firebase-books';
 import type { Book } from '@/utils/rakuten-api';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Icon } from '@/components/Icon';
 
 export default function ManualBookEntryScreen() {
   const colorScheme = useColorScheme();
@@ -129,7 +129,7 @@ export default function ManualBookEntryScreen() {
             style={styles.closeButton}
             onPress={handleClose}
             disabled={isSaving}>
-            <MaterialIcons
+            <Icon
               name="close"
               size={28}
               color={Colors[colorScheme ?? 'light'].text}
@@ -154,12 +154,12 @@ export default function ManualBookEntryScreen() {
               <Pressable
                 style={styles.removeImageButton}
                 onPress={() => setImageUrl('')}>
-                <MaterialIcons name="close" size={20} color="#fff" />
+                <Icon name="close" size={20} color="#fff" />
               </Pressable>
             </View>
           ) : (
             <View style={styles.thumbnailPlaceholder}>
-              <MaterialIcons
+              <Icon
                 name="image"
                 size={48}
                 color={Colors[colorScheme ?? 'light'].icon}

@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -10,7 +11,6 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserId } from '@/utils/firebase-auth';
 import { addBookToFirebase, isBookAlreadyAdded } from '@/utils/firebase-books';
 import { searchBookByISBN, type Book } from '@/utils/rakuten-api';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 const SCAN_AREA_WIDTH = 300;
 const SCAN_AREA_HEIGHT = 150;
@@ -203,7 +203,7 @@ export default function BarcodeScannerScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.centerContent}>
-          <MaterialIcons
+          <Icon
             name="camera-alt"
             size={64}
             color={Colors[colorScheme ?? 'light'].icon}
@@ -231,7 +231,7 @@ export default function BarcodeScannerScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Pressable style={styles.closeIconButton} onPress={handleClose}>
-          <MaterialIcons name="close" size={28} color="#fff" />
+          <Icon name="close" size={28} color="#fff" />
         </Pressable>
         <ThemedText style={styles.headerTitle}>バーコードを読み取る</ThemedText>
         <View style={styles.placeholder} />
@@ -341,7 +341,7 @@ export default function BarcodeScannerScreen() {
                   />
                 ) : (
                   <View style={styles.bookThumbnailPlaceholder}>
-                    <MaterialIcons
+                    <Icon
                       name="book"
                       size={48}
                       color={Colors[colorScheme ?? 'light'].icon}

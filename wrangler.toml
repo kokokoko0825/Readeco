@@ -1,0 +1,31 @@
+# Cloudflare Workers設定ファイル
+# このファイルはCloudflare WorkersとPagesの設定に使用されます
+
+name = "readeco"
+compatibility_date = "2024-01-01"
+account_id = "8da9505c0646a0b5a330d28c48481f8c"
+
+# Cloudflare Pages用の設定
+# Expo Webアプリのビルド出力ディレクトリ
+# 注意: Workerを使用する場合は、mainフィールドを有効化してください
+# main = "src/index.ts"
+
+# 環境変数の設定（本番環境ではCloudflareダッシュボードで設定）
+# [vars]
+# ENVIRONMENT = "production"
+
+# シークレット環境変数（wrangler secret put コマンドで設定）
+# 例: wrangler secret put RAKUTEN_APPLICATION_ID
+
+# 開発環境用の設定
+[dev]
+port = 8787
+local_protocol = "http"
+
+# 環境別の設定
+[env.production]
+name = "readeco-production"
+
+[env.staging]
+name = "readeco-staging"
+

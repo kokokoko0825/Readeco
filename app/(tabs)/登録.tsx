@@ -1,12 +1,11 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function RegisterScreen() {
   const colorScheme = useColorScheme();
@@ -28,7 +27,7 @@ export default function RegisterScreen() {
     {
       id: 'barcode',
       icon: (
-        <MaterialCommunityIcons
+        <Icon
           name="barcode-scan"
           size={24}
           color={Colors[colorScheme ?? 'light'].text}
@@ -40,7 +39,7 @@ export default function RegisterScreen() {
     {
       id: 'external',
       icon: (
-        <MaterialIcons
+        <Icon
           name="download"
           size={24}
           color={Colors[colorScheme ?? 'light'].text}
@@ -52,7 +51,7 @@ export default function RegisterScreen() {
     {
       id: 'manual',
       icon: (
-        <MaterialIcons
+        <Icon
           name="edit"
           size={24}
           color={Colors[colorScheme ?? 'light'].text}

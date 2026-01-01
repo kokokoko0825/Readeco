@@ -4,7 +4,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Icon } from '@/components/Icon';
 
 // TODO: 実際のデータ構造に合わせて型を定義
 interface UpcomingBook {
@@ -33,8 +33,8 @@ export default function NewScreen() {
           console.log('Upcoming book pressed:', item.id);
         }}>
         <View style={styles.bookItemContent}>
-          <MaterialIcons
-            name="book-outlined"
+          <Icon
+            name="book"
             size={24}
             color={Colors[colorScheme ?? 'light'].text}
             style={styles.bookIcon}
@@ -57,7 +57,7 @@ export default function NewScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <MaterialIcons
+      <Icon
         name="calendar-today"
         size={48}
         color={Colors[colorScheme ?? 'light'].icon}

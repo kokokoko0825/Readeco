@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -27,7 +28,6 @@ import {
   type FriendRelation,
 } from '@/utils/firebase-friends';
 import { getUserSettings, setUserSettings, type UserSettings } from '@/utils/firebase-users';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -225,7 +225,7 @@ export default function SettingsScreen() {
                   {userId}
                 </ThemedText>
                 <Pressable style={styles.copyButton} onPress={handleCopyUserId}>
-                  <MaterialIcons
+                  <Icon
                     name="content-copy"
                     size={18}
                     color={Colors[colorScheme ?? 'light'].text}
@@ -237,7 +237,7 @@ export default function SettingsScreen() {
           <Pressable
             style={styles.editButton}
             onPress={() => setShowUserSettingsModal(true)}>
-            <MaterialIcons
+            <Icon
               name="edit"
               size={20}
               color="#fff"
@@ -254,7 +254,7 @@ export default function SettingsScreen() {
             <Pressable
               style={styles.addButton}
               onPress={() => setShowFriendModal(true)}>
-              <MaterialIcons name="person-add" size={20} color="#fff" />
+              <Icon name="person-add" size={20} color="#fff" />
             </Pressable>
           </View>
           {friends.length === 0 ? (
@@ -263,7 +263,7 @@ export default function SettingsScreen() {
             friends.map((friend) => (
               <View key={friend.id} style={styles.friendItem}>
                 <View style={styles.friendInfo}>
-                  <MaterialIcons
+                  <Icon
                     name="person"
                     size={24}
                     color={Colors[colorScheme ?? 'light'].text}
@@ -277,7 +277,7 @@ export default function SettingsScreen() {
                 <Pressable
                   style={styles.removeFriendButton}
                   onPress={() => handleRemoveFriend(friend.id!, friend.friendDisplayName)}>
-                  <MaterialIcons name="delete-outline" size={20} color="#ff4444" />
+                  <Icon name="delete-outline" size={20} color="#ff4444" />
                 </Pressable>
               </View>
             ))
@@ -287,7 +287,7 @@ export default function SettingsScreen() {
         {/* サインアウトセクション */}
         <View style={styles.section}>
           <Pressable style={styles.signOutButton} onPress={handleSignOut}>
-            <MaterialIcons name="logout" size={20} color="#ff4444" style={styles.signOutIcon} />
+            <Icon name="logout" size={20} color="#ff4444" style={styles.signOutIcon} />
             <ThemedText style={styles.signOutText}>サインアウト</ThemedText>
           </Pressable>
         </View>
@@ -308,7 +308,7 @@ export default function SettingsScreen() {
             <View style={styles.modalHeader}>
               <ThemedText style={styles.modalTitle}>ユーザー設定</ThemedText>
               <Pressable onPress={() => setShowUserSettingsModal(false)}>
-                <MaterialIcons
+                <Icon
                   name="close"
                   size={24}
                   color={Colors[colorScheme ?? 'light'].text}
@@ -369,7 +369,7 @@ export default function SettingsScreen() {
               <View style={styles.modalHeader}>
                 <ThemedText style={styles.modalTitle}>フレンドを追加</ThemedText>
                 <Pressable onPress={() => setShowFriendModal(false)}>
-                  <MaterialIcons
+                  <Icon
                     name="close"
                     size={24}
                     color={Colors[colorScheme ?? 'light'].text}

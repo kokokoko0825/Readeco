@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -22,7 +23,6 @@ import { extractBaseTitle, getBooksBySeriesKey, getGroupedBooksRepresentatives }
 import { getUserId } from '@/utils/firebase-auth';
 import { getBooksByUserIds, type BookData } from '@/utils/firebase-books';
 import { getUserFriends, type FriendRelation } from '@/utils/firebase-friends';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 // フレンドの本の型（BookDataにフレンド情報を追加）
 interface FriendBook extends BookData {
@@ -229,7 +229,7 @@ export default function FriendsScreen() {
     if (friends.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <MaterialIcons
+          <Icon
             name="people-outline"
             size={48}
             color={Colors[colorScheme ?? 'light'].icon}
@@ -247,7 +247,7 @@ export default function FriendsScreen() {
     if (friendBooks.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <MaterialIcons
+          <Icon
             name="book"
             size={48}
             color={Colors[colorScheme ?? 'light'].icon}
@@ -265,7 +265,7 @@ export default function FriendsScreen() {
     if (groupedFilteredBooks.length === 0) {
       return (
         <View style={styles.emptyContainer}>
-          <MaterialIcons
+          <Icon
             name="search-off"
             size={48}
             color={Colors[colorScheme ?? 'light'].icon}
@@ -305,7 +305,7 @@ export default function FriendsScreen() {
           <ThemedText style={styles.filterText}>
             {selectedFriend ? selectedFriend.friendDisplayName : '全て'}
           </ThemedText>
-          <MaterialIcons
+          <Icon
             name="keyboard-arrow-down"
             size={20}
             color={Colors[colorScheme ?? 'light'].text}
@@ -341,7 +341,7 @@ export default function FriendsScreen() {
             <View style={styles.modalHeader}>
               <ThemedText style={styles.modalTitle}>フィルター</ThemedText>
               <Pressable onPress={() => setShowFilterModal(false)}>
-                <MaterialIcons
+                <Icon
                   name="close"
                   size={24}
                   color={Colors[colorScheme ?? 'light'].text}
@@ -352,7 +352,7 @@ export default function FriendsScreen() {
             <ScrollView style={styles.modalBody}>
               {/* 検索バー */}
               <View style={styles.searchContainer}>
-                <MaterialIcons
+                <Icon
                   name="search"
                   size={20}
                   color={Colors[colorScheme ?? 'light'].text}
@@ -372,7 +372,7 @@ export default function FriendsScreen() {
                   <Pressable
                     style={styles.clearSearchButton}
                     onPress={() => setSearchQuery('')}>
-                    <MaterialIcons name="close" size={18} color="#999" />
+                    <Icon name="close" size={18} color="#999" />
                   </Pressable>
                 )}
               </View>
@@ -390,7 +390,7 @@ export default function FriendsScreen() {
                 onPress={() => {
                   setSelectedFriendId(null);
                 }}>
-                <MaterialIcons
+                <Icon
                   name={!selectedFriendId ? 'radio-button-checked' : 'radio-button-unchecked'}
                   size={20}
                   color={!selectedFriendId ? '#838A2D' : Colors[colorScheme ?? 'light'].text}
@@ -410,7 +410,7 @@ export default function FriendsScreen() {
                   onPress={() => {
                     setSelectedFriendId(friend.friendId);
                   }}>
-                  <MaterialIcons
+                  <Icon
                     name={
                       selectedFriendId === friend.friendId
                         ? 'radio-button-checked'
@@ -458,7 +458,7 @@ export default function FriendsScreen() {
                 {seriesBaseTitle || 'シリーズ一覧'}
               </ThemedText>
               <Pressable onPress={() => setShowSeriesModal(false)}>
-                <MaterialIcons
+                <Icon
                   name="close"
                   size={24}
                   color={Colors[colorScheme ?? 'light'].text}

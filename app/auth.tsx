@@ -24,7 +24,7 @@ import { signUp, signIn, signInWithGoogle } from '@/utils/firebase-auth';
 import { useAuth } from '@/contexts/AuthContext';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Icon } from '@/components/Icon';
 
 // WebBrowserを完了させる（Google認証用）
 WebBrowser.maybeCompleteAuthSession();
@@ -263,7 +263,7 @@ export default function AuthScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <MaterialIcons
+            <Icon
               name="book"
               size={64}
               color={Colors[colorScheme ?? 'light'].text}
@@ -372,7 +372,7 @@ export default function AuthScreen() {
                     <ActivityIndicator color="#fff" />
                   ) : (
                     <>
-                      <MaterialIcons name="google" size={20} color="#fff" style={styles.googleIcon} />
+                      <Icon name="google" size={20} color="#fff" style={styles.googleIcon} />
                       <ThemedText style={styles.googleButtonText}>
                         Googleで{isSignUp ? 'サインアップ' : 'サインイン'}
                       </ThemedText>

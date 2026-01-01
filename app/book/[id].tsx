@@ -9,7 +9,7 @@ import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getBookById, deleteBook, type BookData } from '@/utils/firebase-books';
 import { getUserId } from '@/utils/firebase-auth';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Icon } from '@/components/Icon';
 
 export default function BookCardScreen() {
   const colorScheme = useColorScheme();
@@ -106,7 +106,7 @@ export default function BookCardScreen() {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.errorContainer}>
-          <MaterialIcons
+          <Icon
             name="error-outline"
             size={48}
             color={Colors[colorScheme ?? 'light'].icon}
@@ -124,7 +124,7 @@ export default function BookCardScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.header}>
         <Pressable style={styles.backIconButton} onPress={() => router.back()}>
-          <MaterialIcons
+          <Icon
             name="arrow-back"
             size={24}
             color={Colors[colorScheme ?? 'light'].text}
@@ -136,7 +136,7 @@ export default function BookCardScreen() {
             style={styles.deleteIconButton}
             onPress={handleDelete}
             disabled={deleting}>
-            <MaterialIcons
+            <Icon
               name="delete-outline"
               size={24}
               color={deleting ? '#999' : Colors[colorScheme ?? 'light'].text}
@@ -212,7 +212,7 @@ export default function BookCardScreen() {
         <View style={styles.detailsContainer}>
           {book.publisher && (
             <View style={styles.detailRow}>
-              <MaterialIcons
+              <Icon
                 name="business"
                 size={20}
                 color={Colors[colorScheme ?? 'light'].icon}
@@ -225,7 +225,7 @@ export default function BookCardScreen() {
 
           {book.publishDate && (
             <View style={styles.detailRow}>
-              <MaterialIcons
+              <Icon
                 name="calendar-today"
                 size={20}
                 color={Colors[colorScheme ?? 'light'].icon}
@@ -238,7 +238,7 @@ export default function BookCardScreen() {
 
           {book.price && (
             <View style={styles.detailRow}>
-              <MaterialIcons
+              <Icon
                 name="attach-money"
                 size={20}
                 color={Colors[colorScheme ?? 'light'].icon}
@@ -250,7 +250,7 @@ export default function BookCardScreen() {
           )}
 
           <View style={styles.detailRow}>
-            <MaterialIcons
+            <Icon
               name="qr-code"
               size={20}
               color={Colors[colorScheme ?? 'light'].icon}
@@ -281,7 +281,7 @@ export default function BookCardScreen() {
                 Alert.alert('エラー', 'ブラウザを開けませんでした');
               }
             }}>
-            <MaterialIcons
+            <Icon
               name="open-in-new"
               size={20}
               color="#fff"

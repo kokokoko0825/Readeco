@@ -1,0 +1,4 @@
+# Cloudflare Pages用のリダイレクト設定
+# Expo RouterのSPAルーティングを正しく動作させるため、すべてのルートをindex.htmlにリダイレクト
+/*    /index.html   200
+
