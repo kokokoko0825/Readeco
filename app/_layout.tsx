@@ -44,11 +44,6 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // フォントが読み込まれるまで何も表示しない
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
-
   // WebプラットフォームでMaterial Iconsフォントを追加で読み込む（フォールバック用）
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
@@ -82,6 +77,11 @@ export default function RootLayout() {
       }
     }
   }, []);
+
+  // フォントが読み込まれるまで何も表示しない
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
 
   return (
     <AuthProvider>

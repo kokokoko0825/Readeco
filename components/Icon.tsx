@@ -12,6 +12,7 @@ export type IconName =
   | 'calendar-today'
   | 'camera-alt'
   | 'close'
+  | 'confirmation-number'
   | 'content-copy'
   | 'delete-outline'
   | 'download'
@@ -51,6 +52,7 @@ const iconData: Record<IconName, { paths: string[]; circles?: Array<{ cx: number
   'calendar-today': { paths: ['M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0 2 .9 2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z'] },
   'camera-alt': { paths: ['M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z'], circles: [{ cx: 12, cy: 12, r: 3.2 }] },
   'close': { paths: ['M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'] },
+  'confirmation-number': { paths: ['M22 10V6c0-1.11-.9-2-2-2H4c-1.1 0-1.99.89-1.99 2v4c1.1 0 1.99.9 1.99 2s-.89 2-2 2v4c0 1.11.9 2 2 2h16c1.11 0 2-.89 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2zm-2-1.46c-1.19.69-2 1.99-2 3.46s.81 2.77 2 3.46V18H4v-2.54c1.19-.69 2-1.99 2-3.46 0-1.48-.8-2.77-1.99-3.46L4 6h16v2.54zM11 15h2v2h-2zm0-4h2v2h-2zm0-4h2v2h-2z'] },
   'content-copy': { paths: ['M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'] },
   'delete-outline': { paths: ['M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4z'] },
   'download': { paths: ['M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z'] },

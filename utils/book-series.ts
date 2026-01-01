@@ -8,6 +8,7 @@ import type { BookData } from './firebase-books';
  * タイトルから巻数や数字を取り除いて基本タイトルを抽出
  * 例: "ハリーポッター 1" -> "ハリーポッター"
  *     "進撃の巨人 第10巻" -> "進撃の巨人"
+ *     "無用の皇子は西に向き　（1）" -> "無用の皇子は西に向き"
  */
 export function extractBaseTitle(title: string): string {
   // 巻数パターンを除去
@@ -16,18 +17,20 @@ export function extractBaseTitle(title: string): string {
 
   // 末尾の巻数パターンを除去
   baseTitle = baseTitle.replace(
-    /\s*(第?\s*\d+\s*(巻|話|冊|集|vol\.?|Vol\.?|VOL\.?|volume|Volume|VOLUME))\s*$/i,
+    /[\s　]*(第?\s*\d+\s*(巻|話|冊|集|vol\.?|Vol\.?|VOL\.?|volume|Volume|VOLUME))[\s　]*$/i,
     ''
   );
 
   // 末尾の単独数字を除去（ただし、数字のみのタイトルは除外）
-  baseTitle = baseTitle.replace(/\s+\d+\s*$/, '');
+  // 全角スペースにも対応
+  baseTitle = baseTitle.replace(/[\s　]+\d+[\s　]*$/, '');
 
-  // 末尾の括弧内の数字を除去（例: "タイトル (1)"）
-  baseTitle = baseTitle.replace(/\s*\([^)]*\d+[^)]*\)\s*$/, '');
+  // 末尾の括弧内の数字を除去（例: "タイトル (1)"、"タイトル　（1）"）
+  // 全角括弧・半角括弧の両方に対応、全角スペースにも対応
+  baseTitle = baseTitle.replace(/[\s　]*[\(（][^)）]*\d+[^)）]*[\)）][\s　]*$/, '');
 
-  // 末尾のスペースを除去
-  baseTitle = baseTitle.trim();
+  // 末尾のスペース（全角・半角）を除去
+  baseTitle = baseTitle.replace(/[\s　]+$/, '');
 
   return baseTitle || title; // 空の場合は元のタイトルを返す
 }
