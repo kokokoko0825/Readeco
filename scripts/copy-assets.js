@@ -37,18 +37,28 @@ function copyAssets() {
     }
   });
 
-  // favicon.icoもルートにコピー（既に存在する場合は上書き）
-  const faviconPng = path.join(assetsDir, 'favicon.png');
+  // icon.pngをfaviconとapple-touch-iconとしてもルートにコピー
+  const iconPng = path.join(assetsDir, 'icon.png');
   const faviconIco = path.join(distDir, 'favicon.ico');
+  const faviconPngDest = path.join(distDir, 'favicon.png');
+  const appleTouchIconDest = path.join(distDir, 'apple-touch-icon.png');
 
-  // favicon.pngが存在する場合は、favicon.icoとしてもコピー
-  // 注意: 実際の.icoファイルが必要な場合は、別途変換が必要です
-  if (fs.existsSync(faviconPng)) {
-    // PNGファイルをそのままコピー（ブラウザはPNGもfaviconとして認識します）
-    const faviconPngDest = path.join(distDir, 'favicon.png');
+  // icon.pngが存在する場合は、faviconとapple-touch-iconとしてもコピー
+  if (fs.existsSync(iconPng)) {
+    // favicon.pngとしてコピー
+    fs.copyFileSync(iconPng, faviconPngDest);
+    console.log('✓ Copied icon.png as favicon.png to dist/');
+    
+    // apple-touch-icon.pngとしてコピー（iPhoneなどでホームスクリーンに追加する際に使用）
+    fs.copyFileSync(iconPng, appleTouchIconDest);
+    console.log('✓ Copied icon.png as apple-touch-icon.png to dist/');
+    
+    // favicon.icoとしてもコピー（既に存在する場合は上書き）
+    // 注意: 実際の.icoファイルが必要な場合は、別途変換が必要です
+    // ブラウザはPNGもfaviconとして認識します
     if (!fs.existsSync(faviconIco)) {
-      fs.copyFileSync(faviconPng, faviconPngDest);
-      console.log('✓ Copied favicon.png to dist/');
+      fs.copyFileSync(iconPng, faviconIco);
+      console.log('✓ Copied icon.png as favicon.ico to dist/');
     }
   }
 
@@ -93,7 +103,7 @@ function updateHtmlFiles() {
       
       // favicon参照を追加/更新
       if (!hasIcon) {
-        iconTags.push('<link rel="icon" type="image/png" href="/assets/images/favicon.png" />');
+        iconTags.push('<link rel="icon" type="image/png" href="/assets/images/icon.png" />');
         iconTags.push('<link rel="icon" type="image/x-icon" href="/favicon.ico" />');
       } else {
         // 既存のfavicon参照を更新（複数のfavicon参照を統合）
@@ -101,20 +111,46 @@ function updateHtmlFiles() {
           /<link\s+rel=["']icon["'][^>]*>/gi,
           ''
         );
-        iconTags.push('<link rel="icon" type="image/png" href="/assets/images/favicon.png" />');
+        iconTags.push('<link rel="icon" type="image/png" href="/assets/images/icon.png" />');
         iconTags.push('<link rel="icon" type="image/x-icon" href="/favicon.ico" />');
       }
       
-      // apple-touch-icon参照を追加
+      // apple-touch-icon参照を追加（iPhoneなどでホームスクリーンに追加する際に使用）
       if (!hasAppleTouchIcon) {
-        iconTags.push('<link rel="apple-touch-icon" href="/assets/images/icon.png" />');
+        iconTags.push('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
+        iconTags.push('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />');
       } else {
         // 既存のapple-touch-icon参照を更新
         content = content.replace(
           /<link\s+rel=["']apple-touch-icon["'][^>]*>/gi,
           ''
         );
-        iconTags.push('<link rel="apple-touch-icon" href="/assets/images/icon.png" />');
+        iconTags.push('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
+        iconTags.push('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />');
+      }
+      
+      // PWA用のマニフェストアイコンも追加（Androidでホームスクリーンに追加する際に使用）
+      const hasManifest = /<link\s+rel=["']manifest["'][^>]*>/i.test(content);
+      if (!hasManifest) {
+        iconTags.push('<link rel="manifest" href="/manifest.json" />');
+      }
+      
+      // Android向けのtheme-colorメタタグを追加
+      const hasThemeColor = /<meta\s+name=["']theme-color["'][^>]*>/i.test(content);
+      if (!hasThemeColor) {
+        iconTags.push('<meta name="theme-color" content="#6A4028" />');
+      } else {
+        // 既存のtheme-colorを更新
+        content = content.replace(
+          /<meta\s+name=["']theme-color["'][^>]*>/gi,
+          '<meta name="theme-color" content="#6A4028" />'
+        );
+      }
+      
+      // Android向けのmobile-web-app-capableメタタグを追加
+      const hasMobileWebApp = /<meta\s+name=["']mobile-web-app-capable["'][^>]*>/i.test(content);
+      if (!hasMobileWebApp) {
+        iconTags.push('<meta name="mobile-web-app-capable" content="yes" />');
       }
       
       if (iconTags.length > 0) {
@@ -131,10 +167,74 @@ function updateHtmlFiles() {
   });
 }
 
+/**
+ * manifest.jsonファイルのアイコンパスを更新する
+ * AndroidでWebアプリをホームスクリーンに追加する際に使用される
+ */
+function updateManifest() {
+  const distDir = path.join(__dirname, '..', 'dist');
+  const manifestPath = path.join(distDir, 'manifest.json');
+  
+  if (fs.existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      let modified = false;
+      
+      // アイコンをすべてicon.pngに統一
+      // Android Chromeで必要なサイズ: 192x192, 512x512
+      const requiredIcons = [
+        {
+          src: '/assets/images/icon.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any maskable'
+        },
+        {
+          src: '/assets/images/icon.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any maskable'
+        }
+      ];
+      
+      // 既存のアイコンをすべて置き換え
+      if (manifest.icons && Array.isArray(manifest.icons)) {
+        manifest.icons = requiredIcons;
+        modified = true;
+      } else {
+        // アイコンが存在しない場合は追加
+        manifest.icons = requiredIcons;
+        modified = true;
+      }
+      
+      // start_urlとdisplayも確認（PWAとして動作するために必要）
+      if (!manifest.start_url) {
+        manifest.start_url = '/';
+        modified = true;
+      }
+      
+      if (!manifest.display) {
+        manifest.display = 'standalone';
+        modified = true;
+      }
+      
+      if (modified) {
+        fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+        console.log('✓ Updated manifest.json with icon.png for Android PWA');
+      }
+    } catch (error) {
+      console.warn(`⚠ Warning: Could not update manifest.json: ${error.message}`);
+    }
+  } else {
+    console.warn('⚠ Warning: manifest.json not found in dist/');
+  }
+}
+
 // スクリプトを実行
 try {
   copyAssets();
   updateHtmlFiles();
+  updateManifest();
   console.log('✓ All assets and HTML files updated!');
 } catch (error) {
   console.error('Error copying assets:', error);

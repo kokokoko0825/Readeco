@@ -1,2 +1,9 @@
 ignoredBuiltDependencies:
   - unrs-resolver
+
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - esbuild
+  - protobufjs
+  - sharp
+  - workerd

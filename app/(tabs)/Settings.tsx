@@ -173,25 +173,47 @@ export default function SettingsScreen() {
   };
 
   const handleSignOut = async () => {
-    Alert.alert('サインアウト', 'ログアウトしますか？', [
-      {
-        text: 'キャンセル',
-        style: 'cancel',
-      },
-      {
-        text: 'サインアウト',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await signOutUser();
-            // 認証画面にリダイレクト（AuthGuardが処理）
-          } catch (error) {
-            console.error('Error signing out:', error);
-            Alert.alert('エラー', 'サインアウトに失敗しました');
-          }
+    console.log('handleSignOut called'); // デバッグ用
+    
+    // Web版ではwindow.confirmを使用、ネイティブ版ではAlert.alertを使用
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('ログアウトしますか？');
+      if (!confirmed) {
+        return;
+      }
+      
+      try {
+        // FirebaseのsignOut()を呼び出すと、onAuthStateChangedが自動的に発火して
+        // AuthContextのuserがnullになり、AuthGuardが自動的に/authにリダイレクトする
+        await signOutUser();
+        // 明示的なリダイレクトは不要（AuthGuardが自動的に処理する）
+      } catch (error) {
+        console.error('Error signing out:', error);
+        window.alert('サインアウトに失敗しました');
+      }
+    } else {
+      Alert.alert('サインアウト', 'ログアウトしますか？', [
+        {
+          text: 'キャンセル',
+          style: 'cancel',
         },
-      },
-    ]);
+        {
+          text: 'サインアウト',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // FirebaseのsignOut()を呼び出すと、onAuthStateChangedが自動的に発火して
+              // AuthContextのuserがnullになり、AuthGuardが自動的に/authにリダイレクトする
+              await signOutUser();
+              // 明示的なリダイレクトは不要（AuthGuardが自動的に処理する）
+            } catch (error) {
+              console.error('Error signing out:', error);
+              Alert.alert('エラー', 'サインアウトに失敗しました');
+            }
+          },
+        },
+      ]);
+    }
   };
 
   if (loading) {
@@ -286,7 +308,11 @@ export default function SettingsScreen() {
 
         {/* サインアウトセクション */}
         <View style={styles.section}>
-          <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+          <Pressable
+            style={styles.signOutButton}
+            onPress={handleSignOut}
+            // Web版ではonClickも追加
+            {...(Platform.OS === 'web' ? { onClick: handleSignOut } : {})}>
             <Icon name="logout" size={20} color="#ff4444" style={styles.signOutIcon} />
             <ThemedText style={styles.signOutText}>サインアウト</ThemedText>
           </Pressable>

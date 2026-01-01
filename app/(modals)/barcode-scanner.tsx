@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Dimensions, Image, Modal, Platform, Pressable
 import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { WebBarcodeScanner } from '@/components/WebBarcodeScanner';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { getUserId } from '@/utils/firebase-auth';
@@ -17,6 +18,8 @@ const SCAN_AREA_HEIGHT = 150;
 
 export default function BarcodeScannerScreen() {
   const colorScheme = useColorScheme();
+  // Web版ではWebBarcodeScannerが直接getUserMediaを使用するため、useCameraPermissionsは不要
+  // ただし、expo-cameraのuseCameraPermissionsはWebでも動作するため、条件付きで使用
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -127,6 +130,9 @@ export default function BarcodeScannerScreen() {
         setShowBookModal(true);
       } else {
         // 本が見つからない、または情報が不完全な場合
+        setLoading(false);
+        setIsRequesting(false);
+        isProcessingRef.current = false;
         setShowingAlert(true);
         Alert.alert(
           '本が見つかりませんでした',
@@ -137,8 +143,10 @@ export default function BarcodeScannerScreen() {
               onPress: () => {
                 setShowingAlert(false);
                 setScanned(false);
-                setLastScannedISBN(''); // ISBNコードをリセット
-                setIsRequesting(false); // リクエスト送信フラグをリセット
+                setLastScannedISBN('');
+                setIsRequesting(false);
+                lastScannedISBNRef.current = '';
+                isProcessingRef.current = false;
               },
             },
           ]
@@ -166,6 +174,9 @@ export default function BarcodeScannerScreen() {
         alertMessage = `無効なISBN形式です。\n\n読み取ったコード: ${isbn}\n\nもう一度スキャンしてください。`;
       }
       
+      setLoading(false);
+      setIsRequesting(false);
+      isProcessingRef.current = false;
       setShowingAlert(true);
       Alert.alert('エラー', alertMessage, [
         {
@@ -173,8 +184,10 @@ export default function BarcodeScannerScreen() {
           onPress: () => {
             setShowingAlert(false);
             setScanned(false);
-            setLastScannedISBN(''); // ISBNコードをリセット
-            setIsRequesting(false); // リクエスト送信フラグをリセット
+            setLastScannedISBN('');
+            setIsRequesting(false);
+            lastScannedISBNRef.current = '';
+            isProcessingRef.current = false;
           },
         },
       ]);
@@ -189,42 +202,62 @@ export default function BarcodeScannerScreen() {
     router.back();
   };
 
-  if (!permission) {
-    return (
-      <ThemedView style={styles.container}>
-        <View style={styles.centerContent}>
-          <ThemedText style={styles.statusText}>カメラの権限を確認中...</ThemedText>
-        </View>
-      </ThemedView>
-    );
-  }
+  // Web用のバーコードスキャンハンドラー
+  const handleWebBarcodeScanned = (result: { data: string }) => {
+    console.log('handleWebBarcodeScanned called with:', result);
+    // BarcodeScanningResult形式に変換
+    const barcodeResult: BarcodeScanningResult = {
+      data: result.data,
+      type: 'ean13', // デフォルト値
+      cornerPoints: [],
+      bounds: { origin: { x: 0, y: 0 }, size: { width: 0, height: 0 } },
+    };
+    console.log('Calling handleBarCodeScanned with:', barcodeResult);
+    // handleBarCodeScannedは非同期関数なので、直接呼び出す（awaitは不要）
+    handleBarCodeScanned(barcodeResult).catch((error) => {
+      console.error('Error in handleBarCodeScanned:', error);
+    });
+  };
 
-  if (!permission.granted) {
-    return (
-      <ThemedView style={styles.container}>
-        <View style={styles.centerContent}>
-          <Icon
-            name="camera-alt"
-            size={64}
-            color={Colors[colorScheme ?? 'light'].icon}
-          />
-          <ThemedText style={styles.errorText}>カメラの権限が必要です</ThemedText>
-          <ThemedText style={styles.errorSubText}>
-            {Platform.OS === 'web'
-              ? 'バーコードをスキャンするにはカメラの権限が必要です。\nHTTPS環境でアクセスしていることを確認してください。'
-              : 'バーコードをスキャンするにはカメラの権限が必要です'}
-          </ThemedText>
-          {permission.canAskAgain && (
-            <Pressable style={styles.closeButton} onPress={requestPermission}>
-              <ThemedText style={styles.closeButtonText}>権限をリクエスト</ThemedText>
+  // Web版では、WebBarcodeScannerが直接getUserMediaを使用するため、
+  // 権限チェックはWebBarcodeScanner内で行われる
+  // ただし、expo-cameraのuseCameraPermissionsはWebでも動作するため、ネイティブ版のみ権限チェック
+  if (Platform.OS !== 'web') {
+    if (!permission) {
+      return (
+        <ThemedView style={styles.container}>
+          <View style={styles.centerContent}>
+            <ThemedText style={styles.statusText}>カメラの権限を確認中...</ThemedText>
+          </View>
+        </ThemedView>
+      );
+    }
+
+    if (!permission.granted) {
+      return (
+        <ThemedView style={styles.container}>
+          <View style={styles.centerContent}>
+            <Icon
+              name="camera-alt"
+              size={64}
+              color={Colors[colorScheme ?? 'light'].icon}
+            />
+            <ThemedText style={styles.errorText}>カメラの権限が必要です</ThemedText>
+            <ThemedText style={styles.errorSubText}>
+              バーコードをスキャンするにはカメラの権限が必要です
+            </ThemedText>
+            {permission.canAskAgain && (
+              <Pressable style={styles.closeButton} onPress={requestPermission}>
+                <ThemedText style={styles.closeButtonText}>権限をリクエスト</ThemedText>
+              </Pressable>
+            )}
+            <Pressable style={[styles.closeButton, { marginTop: 12, backgroundColor: '#666' }]} onPress={handleClose}>
+              <ThemedText style={styles.closeButtonText}>閉じる</ThemedText>
             </Pressable>
-          )}
-          <Pressable style={[styles.closeButton, { marginTop: 12, backgroundColor: '#666' }]} onPress={handleClose}>
-            <ThemedText style={styles.closeButtonText}>閉じる</ThemedText>
-          </Pressable>
-        </View>
-      </ThemedView>
-    );
+          </View>
+        </ThemedView>
+      );
+    }
   }
 
   return (
@@ -238,24 +271,40 @@ export default function BarcodeScannerScreen() {
       </View>
 
       <View style={styles.scannerContainer}>
-        <CameraView
-          onBarcodeScanned={
-            isProcessingRef.current ||
-            scanned ||
-            loading ||
-            isRequesting ||
-            showBookModal ||
-            showingAlert ||
-            (lastRequestTimeRef.current > 0 && Date.now() - lastRequestTimeRef.current < SCAN_COOLDOWN)
-              ? undefined
-              : handleBarCodeScanned
-          }
-          barcodeScannerSettings={{
-            barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
-          }}
-          style={StyleSheet.absoluteFillObject}
-          facing="back"
-        />
+        {Platform.OS === 'web' ? (
+          <WebBarcodeScanner
+            onBarcodeScanned={handleWebBarcodeScanned}
+            style={StyleSheet.absoluteFillObject}
+            disabled={
+              isProcessingRef.current ||
+              scanned ||
+              loading ||
+              isRequesting ||
+              showBookModal ||
+              showingAlert ||
+              (lastRequestTimeRef.current > 0 && Date.now() - lastRequestTimeRef.current < SCAN_COOLDOWN)
+            }
+          />
+        ) : (
+          <CameraView
+            onBarcodeScanned={
+              isProcessingRef.current ||
+              scanned ||
+              loading ||
+              isRequesting ||
+              showBookModal ||
+              showingAlert ||
+              (lastRequestTimeRef.current > 0 && Date.now() - lastRequestTimeRef.current < SCAN_COOLDOWN)
+                ? undefined
+                : handleBarCodeScanned
+            }
+            barcodeScannerSettings={{
+              barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
+            }}
+            style={StyleSheet.absoluteFillObject}
+            facing="back"
+          />
+        )}
         {loading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color="#fff" />
@@ -410,42 +459,46 @@ export default function BarcodeScannerScreen() {
                         // 既に登録されているかチェック
                         const alreadyAdded = await isBookAlreadyAdded(userId, foundBook.isbn);
                         if (alreadyAdded) {
-                          Alert.alert('既に登録されています', 'この本は既に本棚に追加されています。', [
-                            {
-                              text: 'OK',
-                              onPress: () => {
-                                setShowBookModal(false);
-                                setScanned(false);
-                                setFoundBook(null);
-                                setLastScannedISBN('');
-                                setIsRequesting(false);
-                                lastScannedISBNRef.current = '';
-                                isProcessingRef.current = false;
-                                router.back();
-                              },
-                            },
-                          ]);
+                          // 状態をリセット
+                          setShowBookModal(false);
+                          setScanned(false);
+                          setFoundBook(null);
+                          setLastScannedISBN('');
+                          setIsRequesting(false);
+                          lastScannedISBNRef.current = '';
+                          isProcessingRef.current = false;
+
+                          // Web版ではrouter.back()が正しく動作しない可能性があるため、明示的に本棚ページに遷移
+                          if (Platform.OS === 'web') {
+                            router.replace('/(tabs)');
+                          } else {
+                            router.back();
+                          }
+
+                          Alert.alert('既に登録されています', 'この本は既に本棚に追加されています。');
                           return;
                         }
 
                         // Firebaseに保存
                         await addBookToFirebase(foundBook, userId, foundBook.description);
 
-                        Alert.alert('追加完了', '本棚に追加しました。', [
-                          {
-                            text: 'OK',
-                            onPress: () => {
-                              setShowBookModal(false);
-                              setScanned(false);
-                              setFoundBook(null);
-                              setLastScannedISBN('');
-                              setIsRequesting(false);
-                              lastScannedISBNRef.current = '';
-                              isProcessingRef.current = false;
-                              router.back();
-                            },
-                          },
-                        ]);
+                        // 状態をリセット
+                        setShowBookModal(false);
+                        setScanned(false);
+                        setFoundBook(null);
+                        setLastScannedISBN('');
+                        setIsRequesting(false);
+                        lastScannedISBNRef.current = '';
+                        isProcessingRef.current = false;
+
+                        // Web版ではrouter.back()が正しく動作しない可能性があるため、明示的に本棚ページに遷移
+                        if (Platform.OS === 'web') {
+                          router.replace('/(tabs)');
+                        } else {
+                          router.back();
+                        }
+
+                        Alert.alert('追加完了', '本棚に追加しました。');
                       } catch (error) {
                         console.error('Error adding book to Firebase:', error);
                         Alert.alert(
