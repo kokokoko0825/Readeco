@@ -22,6 +22,7 @@ export default function HomeScreen() {
   const unsubscribeRef = useRef<Unsubscribe | null>(null);
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'date-desc' | 'date-asc' | 'title'>('date-desc');
 
   useEffect(() => {
     if (user) {
@@ -103,8 +104,32 @@ export default function HomeScreen() {
 
   // シリーズでグループ化された書籍リスト
   const groupedBooks = useMemo(() => {
-    return getGroupedBooksRepresentatives(books);
-  }, [books]);
+    let grouped = getGroupedBooksRepresentatives(books);
+    
+    // 並び替えを適用（左上から右下へ並ぶように）
+    grouped = [...grouped].sort((a, b) => {
+      switch (sortOrder) {
+        case 'date-desc':
+          // 登録日降順（新しい順）→ 左上に最新の本
+          const dateA = a.addedAt?.getTime() || 0;
+          const dateB = b.addedAt?.getTime() || 0;
+          return dateB - dateA; // 降順：大きい値（新しい）が先
+        case 'date-asc':
+          // 登録日昇順（古い順）→ 左上に最古の本
+          const dateA2 = a.addedAt?.getTime() || 0;
+          const dateB2 = b.addedAt?.getTime() || 0;
+          return dateA2 - dateB2; // 昇順：小さい値（古い）が先
+        case 'title':
+          // タイトル五十音順 → 左上に最初の文字の本
+          // 日本語の文字列比較（localeCompareを使用）
+          return a.title.localeCompare(b.title, 'ja'); // 昇順：小さい値（最初の文字）が先
+        default:
+          return 0;
+      }
+    });
+    
+    return grouped;
+  }, [books, sortOrder]);
 
   // 選択されたシリーズの本一覧
   const selectedSeriesBooks = useMemo(() => {
@@ -306,6 +331,112 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
+      {/* 並び替えセレクター */}
+      <View
+        style={[
+          styles.sortContainer,
+          {
+            backgroundColor: Colors[colorScheme ?? 'light'].background,
+            borderBottomColor: colorScheme === 'dark' ? '#2A2A2A' : '#E0E0E0',
+          },
+        ]}>
+        <View style={styles.sortButtons}>
+          <Pressable
+            style={[
+              styles.sortButton,
+              sortOrder === 'date-desc' && styles.sortButtonActive,
+              {
+                backgroundColor:
+                  sortOrder === 'date-desc'
+                    ? '#838A2D'
+                    : colorScheme === 'dark'
+                    ? '#2A2A2A'
+                    : '#F5F5F5',
+              },
+            ]}
+            onPress={() => setSortOrder('date-desc')}>
+            <Icon
+              name="schedule"
+              size={16}
+              color={
+                sortOrder === 'date-desc'
+                  ? '#fff'
+                  : Colors[colorScheme ?? 'light'].text
+              }
+            />
+            <ThemedText
+              style={[
+                styles.sortButtonText,
+                sortOrder === 'date-desc' && styles.sortButtonTextActive,
+              ]}>
+              新しい順
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.sortButton,
+              sortOrder === 'date-asc' && styles.sortButtonActive,
+              {
+                backgroundColor:
+                  sortOrder === 'date-asc'
+                    ? '#838A2D'
+                    : colorScheme === 'dark'
+                    ? '#2A2A2A'
+                    : '#F5F5F5',
+              },
+            ]}
+            onPress={() => setSortOrder('date-asc')}>
+            <Icon
+              name="history"
+              size={16}
+              color={
+                sortOrder === 'date-asc'
+                  ? '#fff'
+                  : Colors[colorScheme ?? 'light'].text
+              }
+            />
+            <ThemedText
+              style={[
+                styles.sortButtonText,
+                sortOrder === 'date-asc' && styles.sortButtonTextActive,
+              ]}>
+              古い順
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            style={[
+              styles.sortButton,
+              sortOrder === 'title' && styles.sortButtonActive,
+              {
+                backgroundColor:
+                  sortOrder === 'title'
+                    ? '#838A2D'
+                    : colorScheme === 'dark'
+                    ? '#2A2A2A'
+                    : '#F5F5F5',
+              },
+            ]}
+            onPress={() => setSortOrder('title')}>
+            <Icon
+              name="sort-by-alpha"
+              size={16}
+              color={
+                sortOrder === 'title'
+                  ? '#fff'
+                  : Colors[colorScheme ?? 'light'].text
+              }
+            />
+            <ThemedText
+              style={[
+                styles.sortButtonText,
+                sortOrder === 'title' && styles.sortButtonTextActive,
+              ]}>
+              タイトル順
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+
       <FlatList
         data={groupedBooks}
         renderItem={renderBookItem}
@@ -363,6 +494,51 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  sortContainer: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  sortButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  sortButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    gap: 6,
+  },
+  sortButtonActive: {
+    shadowColor: '#838A2D',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sortButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  sortButtonTextActive: {
+    color: '#fff',
+    fontWeight: '600',
   },
   listContainer: {
     paddingTop: 20,
