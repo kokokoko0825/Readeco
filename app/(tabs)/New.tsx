@@ -1,6 +1,6 @@
 import * as WebBrowser from 'expo-web-browser';
 import type { Unsubscribe } from 'firebase/firestore';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,7 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { showAlert } from '@/utils/alert';
 import { getUserId } from '@/utils/firebase-auth';
-import { isBookAlreadyAdded, subscribeUserBooks, type BookData } from '@/utils/firebase-books';
+import { subscribeUserBooks, type BookData } from '@/utils/firebase-books';
 import { searchBooksByAuthor, type Book } from '@/utils/rakuten-api';
 
 type TabType = 'available' | 'preorder';
@@ -29,12 +29,21 @@ interface NewBook extends Book {
   publishDateFormatted?: string;
 }
 
+// キャッシュ用オブジェクト
+const dateParseCache = new Map<string, Date | null>();
+const authorSearchCache = new Map<string, { available: NewBook[]; preorder: NewBook[] }>();
+
 /**
- * 楽天APIのsalesDateをDateオブジェクトに変換
+ * 楽天APIのsalesDateをDateオブジェクトに変換（キャッシュ機能付き）
  * 形式は "YYYY年MM月DD日" や "YYYYMMDD" など様々な可能性がある
  */
 function parseSalesDate(salesDate?: string): Date | null {
   if (!salesDate) return null;
+
+  // キャッシュをチェック
+  if (dateParseCache.has(salesDate)) {
+    return dateParseCache.get(salesDate) ?? null;
+  }
 
   try {
     // "YYYY年MM月DD日" 形式を試す
@@ -43,7 +52,9 @@ function parseSalesDate(salesDate?: string): Date | null {
       const year = parseInt(match1[1], 10);
       const month = parseInt(match1[2], 10) - 1; // 月は0ベース
       const day = parseInt(match1[3], 10);
-      return new Date(year, month, day);
+      const result = new Date(year, month, day);
+      dateParseCache.set(salesDate, result);
+      return result;
     }
 
     // "YYYYMMDD" 形式を試す
@@ -51,18 +62,22 @@ function parseSalesDate(salesDate?: string): Date | null {
       const year = parseInt(salesDate.substring(0, 4), 10);
       const month = parseInt(salesDate.substring(4, 6), 10) - 1;
       const day = parseInt(salesDate.substring(6, 8), 10);
-      return new Date(year, month, day);
+      const result = new Date(year, month, day);
+      dateParseCache.set(salesDate, result);
+      return result;
     }
 
     // その他の形式はDateコンストラクタに任せる
     const date = new Date(salesDate);
     if (!isNaN(date.getTime())) {
+      dateParseCache.set(salesDate, date);
       return date;
     }
   } catch (error) {
     console.error('Error parsing sales date:', salesDate, error);
   }
 
+  dateParseCache.set(salesDate, null);
   return null;
 }
 
@@ -84,12 +99,13 @@ function formatPublishDate(salesDate?: string): string {
 
 export default function NewScreen() {
   const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  const { user, preloadedNewBooksData, isPreloadingBooks } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('available');
   const [userBooks, setUserBooks] = useState<BookData[]>([]);
   const [availableBooks, setAvailableBooks] = useState<NewBook[]>([]);
   const [preorderBooks, setPreorderBooks] = useState<NewBook[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [loadingBooks, setLoadingBooks] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedBook, setSelectedBook] = useState<NewBook | null>(null);
   const [showBookDetailModal, setShowBookDetailModal] = useState(false);
@@ -113,20 +129,21 @@ export default function NewScreen() {
 
       // リアルタイムリスナーを設定
       try {
-        setLoading(true);
+        setLoadingBooks(true);
         setError(null);
 
         unsubscribeRef.current = subscribeUserBooks(userId, (updatedBooks) => {
           setUserBooks(updatedBooks);
+          setLoadingBooks(false);
         });
       } catch (err) {
         console.error('Error setting up books subscription:', err);
         setError('書籍の読み込みに失敗しました');
-        setLoading(false);
+        setLoadingBooks(false);
       }
     } else {
       setUserBooks([]);
-      setLoading(false);
+      setLoadingBooks(false);
     }
 
     return () => {
@@ -143,6 +160,26 @@ export default function NewScreen() {
       setAvailableBooks([]);
       setPreorderBooks([]);
       setLoading(false);
+      return;
+    }
+
+    // 書籍購読が完了するまで待機
+    if (loadingBooks) {
+      return;
+    }
+
+    // プリロード済みデータがある場合は即座に使用
+    if (preloadedNewBooksData) {
+      console.log('Using preloaded new books data');
+      setAvailableBooks(preloadedNewBooksData.availableBooks as NewBook[]);
+      setPreorderBooks(preloadedNewBooksData.preorderBooks as NewBook[]);
+      setLoading(false);
+      return;
+    }
+
+    // プリロードが進行中の場合は短い待機
+    if (isPreloadingBooks) {
+      setLoading(true);
       return;
     }
 
@@ -205,21 +242,34 @@ export default function NewScreen() {
         const allAvailableBooks: NewBook[] = [];
         const allPreorderBooks: NewBook[] = [];
 
-        // 各著者について検索
-        for (const author of authors) {
+        // レート制限を回避するため、バッチ処理を調整
+        const BATCH_SIZE = 2; // 同時に検索する著者数（5 → 2に削減）
+        const BATCH_DELAY = 2000; // バッチ間の待機時間（500ms → 2000msに増加）
+        const MAX_RETRIES = 2; // 最大リトライ回数（3 → 2に削減）
+        const RETRY_DELAY = 3000; // リトライ時の基本待機時間（3秒）
+
+        /**
+         * 1つの著者の書籍を検索（リトライロジック付き）
+         */
+        const searchAuthorBooks = async (
+          author: string,
+          retryCount: number = 0
+        ): Promise<{ available: NewBook[]; preorder: NewBook[] }> => {
+          // キャッシュをチェック
+          if (authorSearchCache.has(author)) {
+            return authorSearchCache.get(author) || { available: [], preorder: [] };
+          }
+
           try {
             const books = await searchBooksByAuthor(author, 30);
+            
+            const authorAvailableBooks: NewBook[] = [];
+            const authorPreorderBooks: NewBook[] = [];
             
             for (const book of books) {
               // 本棚に登録されていない書籍のみを対象
               const normalizedIsbn = book.isbn.replace(/[-\s]/g, '');
               if (userIsbns.has(normalizedIsbn)) {
-                continue;
-              }
-
-              // ISBNで追加チェック（念のため）
-              const isAdded = await isBookAlreadyAdded(userId, normalizedIsbn);
-              if (isAdded) {
                 continue;
               }
 
@@ -240,10 +290,10 @@ export default function NewScreen() {
                     // この著者の最も新しい登録済み本の発売日より前なので除外
                     continue;
                   }
-                  allAvailableBooks.push(newBook);
+                  authorAvailableBooks.push(newBook);
                 } else {
                   // 発売日が今日より後 → 予約販売中（登録済み本の発売日チェックは不要）
-                  allPreorderBooks.push(newBook);
+                  authorPreorderBooks.push(newBook);
                 }
               } else {
                 // 発売日が不明な場合は発売済みとして扱うが、
@@ -253,11 +303,51 @@ export default function NewScreen() {
               }
             }
 
-            // APIレート制限を考慮して少し待機
-            await new Promise((resolve) => setTimeout(resolve, 500));
-          } catch (err) {
+            const result = { available: authorAvailableBooks, preorder: authorPreorderBooks };
+            authorSearchCache.set(author, result);
+            return result;
+          } catch (err: any) {
+            // レート制限エラー（429）の場合はリトライ
+            const isRateLimitError = err?.message?.includes('429') || 
+                                   err?.message?.includes('API request failed: 429') ||
+                                   err?.message?.includes('リクエストが多すぎます');
+            
+            if (isRateLimitError && retryCount < MAX_RETRIES) {
+              // 指数バックオフ：3000 * (2^retryCount) + ランダム値
+              const exponentialDelay = RETRY_DELAY * Math.pow(2, retryCount);
+              const jitterDelay = Math.random() * 1000; // 0～1秒のランダム値
+              const delay = exponentialDelay + jitterDelay;
+              console.log(
+                `Rate limit error for author ${author}, retrying in ${Math.round(delay)}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+              );
+              await new Promise((resolve) => setTimeout(resolve, delay));
+              return searchAuthorBooks(author, retryCount + 1);
+            }
+            
             console.error(`Error fetching books for author ${author}:`, err);
             // エラーが発生しても他の著者の検索を続行
+            authorSearchCache.set(author, { available: [], preorder: [] });
+            return { available: [], preorder: [] };
+          }
+        };
+
+        // 著者リストをバッチに分割
+        for (let i = 0; i < authors.length; i += BATCH_SIZE) {
+          const batch = authors.slice(i, i + BATCH_SIZE);
+          
+          // バッチ内の著者を並列検索
+          const batchPromises = batch.map((author) => searchAuthorBooks(author));
+          const batchResults = await Promise.all(batchPromises);
+          
+          // 結果を統合
+          batchResults.forEach((result) => {
+            allAvailableBooks.push(...result.available);
+            allPreorderBooks.push(...result.preorder);
+          });
+          
+          // 最後のバッチでない場合、次のバッチの前に待機
+          if (i + BATCH_SIZE < authors.length) {
+            await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY));
           }
         }
 
@@ -287,32 +377,32 @@ export default function NewScreen() {
     };
 
     fetchNewBooks();
-  }, [user, userBooks]);
+  }, [user, userBooks, loadingBooks, preloadedNewBooksData, isPreloadingBooks]);
 
   const currentBooks = useMemo(() => {
     return activeTab === 'available' ? availableBooks : preorderBooks;
   }, [activeTab, availableBooks, preorderBooks]);
 
-  const handleBookPress = (book: NewBook) => {
+  const handleBookPress = useCallback((book: NewBook) => {
     setSelectedBook(book);
     setShowBookDetailModal(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowBookDetailModal(false);
     setSelectedBook(null);
-  };
+  }, []);
 
-  const handleOpenRakutenLink = async (url: string) => {
+  const handleOpenRakutenLink = useCallback(async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url);
     } catch (error) {
       console.error('Error opening browser:', error);
       showAlert('エラー', 'ブラウザを開けませんでした');
     }
-  };
+  }, []);
 
-  const renderBookItem = ({ item }: { item: NewBook }) => {
+  const renderBookItem = useCallback(({ item }: { item: NewBook }) => {
     return (
       <Pressable
         style={({ pressed }) => [
@@ -348,11 +438,11 @@ export default function NewScreen() {
         </View>
       </Pressable>
     );
-  };
+  }, [colorScheme, handleBookPress]);
 
-  const renderSeparator = () => <View style={styles.itemDivider} />;
+  const renderSeparator = useCallback(() => <View style={styles.itemDivider} />, []);
 
-  const renderEmptyState = () => (
+  const renderEmptyState = useCallback(() => (
     <View style={styles.emptyContainer}>
       <ThemedText style={styles.emptyText}>
         {activeTab === 'available'
@@ -363,9 +453,9 @@ export default function NewScreen() {
         登録した本の同作者の新刊が表示されます
       </ThemedText>
     </View>
-  );
+  ), [activeTab]);
 
-  if (loading && userBooks.length === 0) {
+  if (loadingBooks && userBooks.length === 0) {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
@@ -432,6 +522,9 @@ export default function NewScreen() {
           ItemSeparatorComponent={renderSeparator}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={renderEmptyState}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews={true}
         />
       )}
 

@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -263,10 +264,10 @@ export default function AuthScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Icon
-              name="book"
-              size={64}
-              color={Colors[colorScheme ?? 'light'].text}
+            <Image
+              source={require('@/public/images/Logo.svg')}
+              style={{ width: 80, height: 80 }}
+              resizeMode="contain"
             />
             <ThemedText style={styles.title}>Readeco</ThemedText>
             <ThemedText style={styles.subtitle}>

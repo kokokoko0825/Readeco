@@ -58,9 +58,9 @@ const CACHE_DURATION = 60 * 60 * 1000; // 1時間
 
 // リクエスト履歴（最近のリクエスト時刻を記録）
 const requestHistory: RequestHistory[] = [];
-const MAX_REQUESTS_PER_WINDOW = 3; // ウィンドウ内の最大リクエスト数
-const REQUEST_WINDOW = 10 * 1000; // 10秒間のウィンドウ
-const MIN_REQUEST_INTERVAL = 2000; // 最小リクエスト間隔（2秒）
+const MAX_REQUESTS_PER_WINDOW = 2; // ウィンドウ内の最大リクエスト数（3→2に削減）
+const REQUEST_WINDOW = 15 * 1000; // 15秒間のウィンドウ（10→15に拡大）
+const MIN_REQUEST_INTERVAL = 3000; // 最小リクエスト間隔（2秒→3秒に増加）
 
 /**
  * キャッシュから本の情報を取得
