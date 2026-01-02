@@ -3,7 +3,6 @@ import type { Unsubscribe } from 'firebase/firestore';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Modal,
@@ -19,6 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { getUserId } from '@/utils/firebase-auth';
 import { isBookAlreadyAdded, subscribeUserBooks, type BookData } from '@/utils/firebase-books';
 import { searchBooksByAuthor, type Book } from '@/utils/rakuten-api';
@@ -308,7 +308,7 @@ export default function NewScreen() {
       await WebBrowser.openBrowserAsync(url);
     } catch (error) {
       console.error('Error opening browser:', error);
-      Alert.alert('エラー', 'ブラウザを開けませんでした');
+      showAlert('エラー', 'ブラウザを開けませんでした');
     }
   };
 

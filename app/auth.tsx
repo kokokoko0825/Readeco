@@ -2,29 +2,29 @@
  * 認証画面（サインアップ・サインイン）
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  TextInput,
-  Pressable,
-  StyleSheet,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
+  StyleSheet,
+  TextInput,
+  View
 } from 'react-native';
-import { router } from 'expo-router';
 
+import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { signUp, signIn, signInWithGoogle } from '@/utils/firebase-auth';
 import { useAuth } from '@/contexts/AuthContext';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
+import { signIn, signInWithGoogle, signUp } from '@/utils/firebase-auth';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
-import { Icon } from '@/components/Icon';
 
 // WebBrowserを完了させる（Google認証用）
 WebBrowser.maybeCompleteAuthSession();
@@ -142,14 +142,14 @@ export default function AuthScreen() {
       handleGoogleSignIn(response.authentication);
     } else if (response?.type === 'error') {
       console.error('Google auth error:', response.error);
-      Alert.alert('エラー', 'Google認証に失敗しました');
+      showAlert('エラー', 'Google認証に失敗しました');
       setGoogleLoading(false);
     }
   }, [response]);
 
   const handleGoogleSignIn = async (authentication: any) => {
     if (!authentication?.idToken) {
-      Alert.alert('エラー', '認証情報の取得に失敗しました');
+      showAlert('エラー', '認証情報の取得に失敗しました');
       setGoogleLoading(false);
       return;
     }
@@ -160,7 +160,7 @@ export default function AuthScreen() {
       router.replace('/(tabs)');
     } catch (error) {
       console.error('Google sign in error:', error);
-      Alert.alert('エラー', error instanceof Error ? error.message : 'Google認証に失敗しました');
+      showAlert('エラー', error instanceof Error ? error.message : 'Google認証に失敗しました');
     } finally {
       setGoogleLoading(false);
     }
@@ -169,7 +169,7 @@ export default function AuthScreen() {
   const handleGoogleSignInPress = async () => {
     // クライアントIDが設定されていない場合
     if (!isGoogleAuthEnabled) {
-      Alert.alert(
+      showAlert(
         '設定が必要です',
         `Google認証を使用するには、環境変数にGoogle Client IDを設定してください。\n\n${
           Platform.OS === 'ios'
@@ -190,24 +190,24 @@ export default function AuthScreen() {
       }
     } catch (error) {
       console.error('Error prompting Google auth:', error);
-      Alert.alert('エラー', 'Google認証の開始に失敗しました');
+      showAlert('エラー', 'Google認証の開始に失敗しました');
       setGoogleLoading(false);
     }
   };
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('エラー', 'メールアドレスとパスワードを入力してください');
+      showAlert('エラー', 'メールアドレスとパスワードを入力してください');
       return;
     }
 
     if (isSignUp && !displayName.trim()) {
-      Alert.alert('エラー', '表示名を入力してください');
+      showAlert('エラー', '表示名を入力してください');
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('エラー', 'パスワードは6文字以上で入力してください');
+      showAlert('エラー', 'パスワードは6文字以上で入力してください');
       return;
     }
 
@@ -215,7 +215,7 @@ export default function AuthScreen() {
     try {
       if (isSignUp) {
         await signUp(email.trim(), password, displayName.trim());
-        Alert.alert('成功', 'アカウントを作成しました', [
+        showAlert('成功', 'アカウントを作成しました', [
           {
             text: 'OK',
             onPress: () => {
@@ -231,7 +231,7 @@ export default function AuthScreen() {
       }
     } catch (error) {
       console.error('Auth error:', error);
-      Alert.alert('エラー', error instanceof Error ? error.message : '認証に失敗しました');
+      showAlert('エラー', error instanceof Error ? error.message : '認証に失敗しました');
     } finally {
       setLoading(false);
     }

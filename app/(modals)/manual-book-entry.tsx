@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +16,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { getUserId } from '@/utils/firebase-auth';
 import { addBookToFirebase } from '@/utils/firebase-books';
 import type { Book } from '@/utils/rakuten-api';
@@ -38,7 +38,7 @@ export default function ManualBookEntryScreen() {
   // バリデーション
   const validateForm = (): boolean => {
     if (!title.trim()) {
-      Alert.alert('エラー', 'タイトルは必須です。');
+      showAlert('エラー', 'タイトルは必須です。');
       return false;
     }
     return true;
@@ -54,7 +54,7 @@ export default function ManualBookEntryScreen() {
     try {
       const userId = getUserId();
       if (!userId) {
-        Alert.alert('エラー', 'ログインが必要です');
+        showAlert('エラー', 'ログインが必要です');
         setIsSaving(false);
         return;
       }
@@ -78,7 +78,7 @@ export default function ManualBookEntryScreen() {
       // Firebaseに保存
       await addBookToFirebase(book, userId, book.description);
 
-      Alert.alert('追加完了', '本棚に追加しました。', [
+      showAlert('追加完了', '本棚に追加しました。', [
         {
           text: 'OK',
           onPress: () => {
@@ -88,7 +88,7 @@ export default function ManualBookEntryScreen() {
       ]);
     } catch (error) {
       console.error('Error adding book to Firebase:', error);
-      Alert.alert(
+      showAlert(
         'エラー',
         '本の追加に失敗しました。\nもう一度お試しください。',
         [

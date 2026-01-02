@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   Pressable,
@@ -18,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { getUserId } from '@/utils/firebase-auth';
 import { addBookToFirebase, isBookAlreadyAdded } from '@/utils/firebase-books';
 import {
@@ -52,7 +52,7 @@ export default function RegisterScreen() {
 
   const handleIsbnModalSearch = async () => {
     if (!isbnModalInput.trim()) {
-      Alert.alert('エラー', 'ISBNコードを入力してください');
+      showAlert('エラー', 'ISBNコードを入力してください');
       return;
     }
 
@@ -61,7 +61,7 @@ export default function RegisterScreen() {
 
     // ISBNの形式をチェック（10桁または13桁の数字）
     if (!/^\d{10}(\d{3})?$/.test(normalizedISBN)) {
-      Alert.alert('エラー', '有効なISBNコードを入力してください（10桁または13桁の数字）');
+      showAlert('エラー', '有効なISBNコードを入力してください（10桁または13桁の数字）');
       return;
     }
 
@@ -69,7 +69,7 @@ export default function RegisterScreen() {
     try {
       const book = await searchBookByISBN(normalizedISBN);
       if (!book) {
-        Alert.alert('見つかりませんでした', 'このISBNコードの本が見つかりませんでした。');
+        showAlert('見つかりませんでした', 'このISBNコードの本が見つかりませんでした。');
         setIsIsbnModalSearching(false);
         return;
       }
@@ -81,7 +81,7 @@ export default function RegisterScreen() {
       setShowBookModal(true);
     } catch (error) {
       console.error('Error searching book by ISBN:', error);
-      Alert.alert(
+      showAlert(
         'エラー',
         error instanceof Error ? error.message : '本の検索に失敗しました'
       );
@@ -130,7 +130,7 @@ export default function RegisterScreen() {
 
   const handleSearchByTitle = async () => {
     if (!titleInput.trim()) {
-      Alert.alert('エラー', 'タイトルを入力してください');
+      showAlert('エラー', 'タイトルを入力してください');
       return;
     }
 
@@ -139,7 +139,7 @@ export default function RegisterScreen() {
     try {
       const results = await searchBooksByQuery(titleInput.trim(), 10);
       if (results.length === 0) {
-        Alert.alert('見つかりませんでした', 'このタイトルの本が見つかりませんでした。');
+        showAlert('見つかりませんでした', 'このタイトルの本が見つかりませんでした。');
         setIsSearching(false);
         return;
       }
@@ -149,7 +149,7 @@ export default function RegisterScreen() {
       setShowBookModal(true);
     } catch (error) {
       console.error('Error searching book by title:', error);
-      Alert.alert(
+      showAlert(
       'エラー',
       error instanceof Error ? error.message : '本の検索に失敗しました'
     );
@@ -172,7 +172,7 @@ export default function RegisterScreen() {
     try {
       const userId = getUserId();
       if (!userId) {
-        Alert.alert('エラー', 'ログインが必要です');
+        showAlert('エラー', 'ログインが必要です');
         setIsSaving(false);
         return;
       }
@@ -180,7 +180,7 @@ export default function RegisterScreen() {
       // 既に登録されているかチェック
       const alreadyAdded = await isBookAlreadyAdded(userId, foundBook.isbn);
       if (alreadyAdded) {
-        Alert.alert('既に登録されています', 'この本は既に本棚に追加されています。');
+        showAlert('既に登録されています', 'この本は既に本棚に追加されています。');
         setIsSaving(false);
         return;
       }
@@ -193,7 +193,7 @@ export default function RegisterScreen() {
       setFoundBook(null);
       setTitleInput('');
 
-      Alert.alert('追加完了', '本棚に追加しました。', [
+      showAlert('追加完了', '本棚に追加しました。', [
         {
           text: 'OK',
           onPress: () => {
@@ -204,7 +204,7 @@ export default function RegisterScreen() {
       ]);
     } catch (error) {
       console.error('Error adding book:', error);
-      Alert.alert('エラー', '本の追加に失敗しました');
+      showAlert('エラー', '本の追加に失敗しました');
     } finally {
       setIsSaving(false);
     }

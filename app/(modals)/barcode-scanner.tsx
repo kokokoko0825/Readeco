@@ -1,7 +1,7 @@
 import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
@@ -9,6 +9,7 @@ import { ThemedView } from '@/components/themed-view';
 import { WebBarcodeScanner } from '@/components/WebBarcodeScanner';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { getUserId } from '@/utils/firebase-auth';
 import { addBookToFirebase, isBookAlreadyAdded } from '@/utils/firebase-books';
 import { searchBookByISBN, type Book } from '@/utils/rakuten-api';
@@ -97,7 +98,7 @@ export default function BarcodeScannerScreen() {
       // ISBNが有効かチェック（10桁または13桁）
       if (!/^\d{10}(\d{3})?$/.test(isbn)) {
         setShowingAlert(true);
-        Alert.alert('エラー', '有効なISBNコードを読み込んでください。', [
+        showAlert('エラー', '有効なISBNコードを読み込んでください。', [
           {
             text: 'OK',
             onPress: () => {
@@ -134,7 +135,7 @@ export default function BarcodeScannerScreen() {
         setIsRequesting(false);
         isProcessingRef.current = false;
         setShowingAlert(true);
-        Alert.alert(
+        showAlert(
           '本が見つかりませんでした',
           '楽天ブックスのデータベースに該当する本が見つかりませんでした。\n\nISBNコードが正しいか、または別の方法で登録してください。',
           [
@@ -178,7 +179,7 @@ export default function BarcodeScannerScreen() {
       setIsRequesting(false);
       isProcessingRef.current = false;
       setShowingAlert(true);
-      Alert.alert('エラー', alertMessage, [
+      showAlert('エラー', alertMessage, [
         {
           text: 'OK',
           onPress: () => {
@@ -445,7 +446,7 @@ export default function BarcodeScannerScreen() {
                       try {
                         const userId = getUserId();
                         if (!userId) {
-                          Alert.alert('エラー', 'ログインが必要です', [
+                          showAlert('エラー', 'ログインが必要です', [
                             {
                               text: 'OK',
                               onPress: () => {
@@ -475,7 +476,7 @@ export default function BarcodeScannerScreen() {
                             router.back();
                           }
 
-                          Alert.alert('既に登録されています', 'この本は既に本棚に追加されています。');
+                          showAlert('既に登録されています', 'この本は既に本棚に追加されています。');
                           return;
                         }
 
@@ -498,10 +499,10 @@ export default function BarcodeScannerScreen() {
                           router.back();
                         }
 
-                        Alert.alert('追加完了', '本棚に追加しました。');
+                        showAlert('追加完了', '本棚に追加しました。');
                       } catch (error) {
                         console.error('Error adding book to Firebase:', error);
-                        Alert.alert(
+                        showAlert(
                           'エラー',
                           '本の追加に失敗しました。\nもう一度お試しください。',
                           [

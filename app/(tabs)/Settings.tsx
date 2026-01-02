@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,6 +17,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { copyToClipboard } from '@/utils/clipboard';
 import { getUserId, signOutUser } from '@/utils/firebase-auth';
 import {
@@ -78,7 +78,7 @@ export default function SettingsScreen() {
       setFriends(friendsList);
     } catch (error) {
       console.error('Error loading settings:', error);
-      Alert.alert('エラー', '設定の読み込みに失敗しました');
+      showAlert('エラー', '設定の読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
@@ -86,7 +86,7 @@ export default function SettingsScreen() {
 
   const handleSaveUserSettings = async () => {
     if (!userId || !displayName.trim()) {
-      Alert.alert('エラー', '表示名を入力してください');
+      showAlert('エラー', '表示名を入力してください');
       return;
     }
 
@@ -98,10 +98,10 @@ export default function SettingsScreen() {
         setUserSettingsState(updatedSettings);
       }
       setShowUserSettingsModal(false);
-      Alert.alert('保存完了', '設定を保存しました');
+      showAlert('保存完了', '設定を保存しました');
     } catch (error) {
       console.error('Error saving user settings:', error);
-      Alert.alert('エラー', '設定の保存に失敗しました');
+      showAlert('エラー', '設定の保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -109,7 +109,7 @@ export default function SettingsScreen() {
 
   const handleAddFriend = async () => {
     if (!userId || !friendUserId.trim()) {
-      Alert.alert('エラー', 'ユーザーIDを入力してください');
+      showAlert('エラー', 'ユーザーIDを入力してください');
       return;
     }
 
@@ -118,7 +118,7 @@ export default function SettingsScreen() {
       // ユーザーを検索
       const friendUser = await searchUserByUserId(friendUserId.trim());
       if (!friendUser) {
-        Alert.alert('エラー', 'ユーザーが見つかりませんでした');
+        showAlert('エラー', 'ユーザーが見つかりませんでした');
         return;
       }
 
@@ -126,13 +126,13 @@ export default function SettingsScreen() {
       setFriendUserId('');
       setShowFriendModal(false);
       await loadData(); // フレンド一覧を再読み込み
-      Alert.alert('追加完了', 'フレンドを追加しました');
+      showAlert('追加完了', 'フレンドを追加しました');
     } catch (error) {
       console.error('Error adding friend:', error);
       if (error instanceof Error) {
-        Alert.alert('エラー', error.message);
+        showAlert('エラー', error.message);
       } else {
-        Alert.alert('エラー', 'フレンドの追加に失敗しました');
+        showAlert('エラー', 'フレンドの追加に失敗しました');
       }
     } finally {
       setSaving(false);
@@ -140,7 +140,7 @@ export default function SettingsScreen() {
   };
 
   const handleRemoveFriend = async (friendRelationId: string, friendName: string) => {
-    Alert.alert('削除確認', `${friendName}をフレンドリストから削除しますか？`, [
+    showAlert('削除確認', `${friendName}をフレンドリストから削除しますか？`, [
       {
         text: 'キャンセル',
         style: 'cancel',
@@ -152,10 +152,10 @@ export default function SettingsScreen() {
           try {
             await removeFriend(friendRelationId);
             await loadData(); // フレンド一覧を再読み込み
-            Alert.alert('削除完了', 'フレンドを削除しました');
+            showAlert('削除完了', 'フレンドを削除しました');
           } catch (error) {
             console.error('Error removing friend:', error);
-            Alert.alert('エラー', 'フレンドの削除に失敗しました');
+            showAlert('エラー', 'フレンドの削除に失敗しました');
           }
         },
       },
@@ -166,9 +166,9 @@ export default function SettingsScreen() {
     if (!userId) return;
     const success = await copyToClipboard(userId);
     if (success) {
-      Alert.alert('コピー完了', 'ユーザーIDをクリップボードにコピーしました');
+      showAlert('コピー完了', 'ユーザーIDをクリップボードにコピーしました');
     } else {
-      Alert.alert('エラー', 'ユーザーIDのコピーに失敗しました');
+      showAlert('エラー', 'ユーザーIDのコピーに失敗しました');
     }
   };
 
@@ -189,10 +189,10 @@ export default function SettingsScreen() {
         // 明示的なリダイレクトは不要（AuthGuardが自動的に処理する）
       } catch (error) {
         console.error('Error signing out:', error);
-        window.alert('サインアウトに失敗しました');
+        showAlert('エラー', 'サインアウトに失敗しました');
       }
     } else {
-      Alert.alert('サインアウト', 'ログアウトしますか？', [
+      showAlert('サインアウト', 'ログアウトしますか？', [
         {
           text: 'キャンセル',
           style: 'cancel',
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
               // 明示的なリダイレクトは不要（AuthGuardが自動的に処理する）
             } catch (error) {
               console.error('Error signing out:', error);
-              Alert.alert('エラー', 'サインアウトに失敗しました');
+              showAlert('エラー', 'サインアウトに失敗しました');
             }
           },
         },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View, Alert } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -7,6 +7,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { getBookById, deleteBook, type BookData } from '@/utils/firebase-books';
 import { getUserId } from '@/utils/firebase-auth';
 import { Icon } from '@/components/Icon';
@@ -37,7 +38,7 @@ export default function BookCardScreen() {
       setLoading(true);
       const bookData = await getBookById(id);
       if (!bookData) {
-        Alert.alert('エラー', '書籍が見つかりませんでした。', [
+        showAlert('エラー', '書籍が見つかりませんでした。', [
           {
             text: 'OK',
             onPress: () => router.back(),
@@ -48,7 +49,7 @@ export default function BookCardScreen() {
       setBook(bookData);
     } catch (error) {
       console.error('Error loading book:', error);
-      Alert.alert('エラー', '書籍の読み込みに失敗しました。', [
+      showAlert('エラー', '書籍の読み込みに失敗しました。', [
         {
           text: 'OK',
           onPress: () => router.back(),
@@ -62,7 +63,7 @@ export default function BookCardScreen() {
   const handleDelete = async () => {
     if (!book?.id) return;
 
-    Alert.alert('削除確認', 'この本を本棚から削除しますか？', [
+    showAlert('削除確認', 'この本を本棚から削除しますか？', [
       {
         text: 'キャンセル',
         style: 'cancel',
@@ -74,7 +75,7 @@ export default function BookCardScreen() {
           try {
             setDeleting(true);
             await deleteBook(book.id!);
-            Alert.alert('削除完了', '本棚から削除しました。', [
+            showAlert('削除完了', '本棚から削除しました。', [
               {
                 text: 'OK',
                 onPress: () => router.back(),
@@ -82,7 +83,7 @@ export default function BookCardScreen() {
             ]);
           } catch (error) {
             console.error('Error deleting book:', error);
-            Alert.alert('エラー', '削除に失敗しました。');
+            showAlert('エラー', '削除に失敗しました。');
           } finally {
             setDeleting(false);
           }
@@ -278,7 +279,7 @@ export default function BookCardScreen() {
                 await WebBrowser.openBrowserAsync(book.url);
               } catch (error) {
                 console.error('Error opening browser:', error);
-                Alert.alert('エラー', 'ブラウザを開けませんでした');
+                showAlert('エラー', 'ブラウザを開けませんでした');
               }
             }}>
             <Icon

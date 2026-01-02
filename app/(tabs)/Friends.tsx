@@ -2,7 +2,6 @@ import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Image,
   Modal,
@@ -19,6 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { showAlert } from '@/utils/alert';
 import { extractBaseTitle, getBooksBySeriesKey, getGroupedBooksRepresentatives } from '@/utils/book-series';
 import { getUserId } from '@/utils/firebase-auth';
 import { getBooksByUserIds, type BookData } from '@/utils/firebase-books';
@@ -82,7 +82,7 @@ export default function FriendsScreen() {
       }
     } catch (error) {
       console.error('Error loading friends data:', error);
-      Alert.alert('エラー', 'データの読み込みに失敗しました');
+      showAlert('エラー', 'データの読み込みに失敗しました');
     } finally {
       setLoading(false);
     }
