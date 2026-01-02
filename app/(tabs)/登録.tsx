@@ -29,7 +29,6 @@ import {
 export default function RegisterScreen() {
   const colorScheme = useColorScheme();
   const [titleInput, setTitleInput] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
   const [foundBook, setFoundBook] = useState<Book | null>(null);
   const [showBookModal, setShowBookModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -134,28 +133,9 @@ export default function RegisterScreen() {
       return;
     }
 
-    setIsSearching(true);
-    setShowSuggestions(false);
-    try {
-      const results = await searchBooksByQuery(titleInput.trim(), 10);
-      if (results.length === 0) {
-        showAlert('見つかりませんでした', 'このタイトルの本が見つかりませんでした。');
-        setIsSearching(false);
-        return;
-      }
-
-      // 検索結果が1つの場合は直接表示、複数の場合は最初の1つを表示
-      setFoundBook(results[0]);
-      setShowBookModal(true);
-    } catch (error) {
-      console.error('Error searching book by title:', error);
-      showAlert(
-      'エラー',
-      error instanceof Error ? error.message : '本の検索に失敗しました'
-    );
-    } finally {
-      setIsSearching(false);
-    }
+    // 検索結果ページに遷移
+    const query = encodeURIComponent(titleInput.trim());
+    router.push(`/(modals)/search-results?query=${query}` as any);
   };
 
   const handleSelectSuggestion = (book: Book) => {
@@ -270,7 +250,6 @@ export default function RegisterScreen() {
               placeholder="タイトルを入力"
               placeholderTextColor="#999"
               autoCapitalize="none"
-              editable={!isSearching}
               onFocus={() => {
                 if (suggestions.length > 0) {
                   setShowSuggestions(true);
@@ -278,17 +257,9 @@ export default function RegisterScreen() {
               }}
             />
             <Pressable
-              style={[
-                styles.searchButton,
-                isSearching && styles.searchButtonDisabled,
-              ]}
-              onPress={handleSearchByTitle}
-              disabled={isSearching}>
-              {isSearching ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <ThemedText style={styles.searchButtonText}>検索</ThemedText>
-              )}
+              style={styles.searchButton}
+              onPress={handleSearchByTitle}>
+              <ThemedText style={styles.searchButtonText}>検索</ThemedText>
             </Pressable>
           </View>
           <ThemedText style={styles.inputHint}>
@@ -615,9 +586,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     minWidth: 80,
-  },
-  searchButtonDisabled: {
-    opacity: 0.6,
   },
   searchButtonText: {
     color: '#fff',

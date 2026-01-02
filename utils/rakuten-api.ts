@@ -285,12 +285,14 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
 /**
  * タイトルや著者で本を検索（将来の拡張用）
  * @param query 検索クエリ（タイトル、著者など）
- * @param maxResults 最大結果数（デフォルト: 10）
+ * @param maxResults 最大結果数（デフォルト: 10、最大30）
+ * @param page ページ番号（デフォルト: 1）
  * @returns 本の情報の配列
  */
 export async function searchBooksByQuery(
   query: string,
-  maxResults: number = 10
+  maxResults: number = 10,
+  page: number = 1
 ): Promise<Book[]> {
   // 楽天ブックスAPIのアプリケーションID
   const applicationId = '1098150694499447345';
@@ -298,11 +300,15 @@ export async function searchBooksByQuery(
   try {
     const apiUrl = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404';
     
+    // 最大30件に制限（楽天ブックスAPIの仕様）
+    const hits = Math.min(maxResults, 30);
+    
     const params = new URLSearchParams({
       applicationId: applicationId,
       format: 'json',
       keyword: query,
-      hits: maxResults.toString(),
+      hits: hits.toString(),
+      page: page.toString(),
       sort: 'standard',
     });
 
