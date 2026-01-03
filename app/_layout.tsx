@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AuthGuard } from '@/components/AuthGuard';
@@ -16,6 +16,8 @@ import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-ic
 // スプラッシュスクリーンを表示させたままにする
 SplashScreen.preventAutoHideAsync();
 
+type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void> };
+
 export const unstable_settings = {
   anchor: '(tabs)',
 };
@@ -23,6 +25,7 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [showCustomSplash, setShowCustomSplash] = useState(Platform.OS === 'web');
+  const [deferredInstallEvent, setDeferredInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
 
   // アイコンフォントを読み込む
   const [fontsLoaded, fontError] = useFonts({
@@ -45,6 +48,23 @@ export default function RootLayout() {
       }
     }
   }, [fontsLoaded, fontError]);
+
+  // Register a basic service worker for PWA capabilities on web
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof navigator === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
+    }
+
+    const registerServiceWorker = async () => {
+      try {
+        await navigator.serviceWorker.register('/service-worker.js', { scope: '/' });
+      } catch (error) {
+        console.warn('Service worker registration failed', error);
+      }
+    };
+
+    registerServiceWorker();
+  }, []);
 
   // WebプラットフォームでMaterial Iconsフォントを追加で読み込む（フォールバック用）
   useEffect(() => {
@@ -80,6 +100,36 @@ export default function RootLayout() {
     }
   }, []);
 
+  // Capture the beforeinstallprompt event to enable an explicit "Install" affordance on Chrome
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+
+    const handler = (event: BeforeInstallPromptEvent) => {
+      event.preventDefault();
+      setDeferredInstallEvent(event);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler as EventListener);
+
+    const handleInstalled = () => setDeferredInstallEvent(null);
+    window.addEventListener('appinstalled', handleInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler as EventListener);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredInstallEvent) return;
+
+    try {
+      await deferredInstallEvent.prompt();
+    } finally {
+      setDeferredInstallEvent(null);
+    }
+  };
+
   // フォントが読み込まれるまで何も表示しない
   if (!fontsLoaded && !fontError) {
     return null;
@@ -97,10 +147,53 @@ export default function RootLayout() {
           </Stack>
           <StatusBar style="auto" />
         </AuthGuard>
-      {showCustomSplash && (
-        <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />
-      )}
+        {Platform.OS === 'web' && deferredInstallEvent && (
+          <View style={styles.installBanner}>
+            <Text style={styles.installText}>アプリをインストールできます</Text>
+            <Pressable style={styles.installButton} onPress={handleInstall}>
+              <Text style={styles.installButtonText}>インストール</Text>
+            </Pressable>
+          </View>
+        )}
+        {showCustomSplash && (
+          <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />
+        )}
       </ThemeProvider>
     </AuthProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  installBanner: {
+    position: 'fixed',
+    bottom: 16,
+    right: 16,
+    left: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    gap: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    zIndex: 9999,
+  },
+  installText: {
+    color: '#ffffff',
+    fontSize: 14,
+    flex: 1,
+    marginRight: 12,
+  },
+  installButton: {
+    backgroundColor: '#6A4028',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+  },
+  installButtonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+});

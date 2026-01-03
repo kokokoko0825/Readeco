@@ -7,6 +7,7 @@ const path = require('path');
 function copyAssets() {
   const distDir = path.join(__dirname, '..', 'dist');
   const assetsDir = path.join(__dirname, '..', 'assets', 'images');
+  const webDir = path.join(__dirname, '..', 'web');
   const distAssetsDir = path.join(distDir, 'assets', 'images');
 
   // dist/assets/imagesディレクトリが存在しない場合は作成
@@ -63,6 +64,17 @@ function copyAssets() {
   }
 
   console.log('✓ Asset copy completed!');
+
+  // PWA用のファイルをコピー（webフォルダにある場合）
+  ['manifest.json', 'service-worker.js'].forEach((file) => {
+    const srcPath = path.join(webDir, file);
+    const destPath = path.join(distDir, file);
+
+    if (fs.existsSync(srcPath)) {
+      fs.copyFileSync(srcPath, destPath);
+      console.log(`✓ Copied ${file} to dist/`);
+    }
+  });
 }
 
 /**
@@ -96,68 +108,49 @@ function updateHtmlFiles() {
     const hasIcon = /<link\s+rel=["']icon["'][^>]*>/i.test(content);
     const hasAppleTouchIcon = /<link\s+rel=["']apple-touch-icon["'][^>]*>/i.test(content);
     
-    // </head>の前にアイコン参照を追加/更新
+    // </head>の直前に確実に挿入する（最初の</head>を置換）
     const headEndIndex = content.indexOf('</head>');
     if (headEndIndex !== -1) {
       const iconTags = [];
-      
+
       // favicon参照を追加/更新
-      if (!hasIcon) {
-        iconTags.push('<link rel="icon" type="image/png" href="/assets/images/icon.png" />');
-        iconTags.push('<link rel="icon" type="image/x-icon" href="/favicon.ico" />');
-      } else {
-        // 既存のfavicon参照を更新（複数のfavicon参照を統合）
-        content = content.replace(
-          /<link\s+rel=["']icon["'][^>]*>/gi,
-          ''
-        );
-        iconTags.push('<link rel="icon" type="image/png" href="/assets/images/icon.png" />');
-        iconTags.push('<link rel="icon" type="image/x-icon" href="/favicon.ico" />');
+      if (hasIcon) {
+        content = content.replace(/<link\s+rel=["']icon["'][^>]*>/gi, '');
       }
-      
-      // apple-touch-icon参照を追加（iPhoneなどでホームスクリーンに追加する際に使用）
-      if (!hasAppleTouchIcon) {
-        iconTags.push('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
-        iconTags.push('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />');
-      } else {
-        // 既存のapple-touch-icon参照を更新
-        content = content.replace(
-          /<link\s+rel=["']apple-touch-icon["'][^>]*>/gi,
-          ''
-        );
-        iconTags.push('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
-        iconTags.push('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />');
+      iconTags.push('<link rel="icon" type="image/png" href="/assets/images/icon.png" />');
+      iconTags.push('<link rel="icon" type="image/x-icon" href="/favicon.ico" />');
+
+      // apple-touch-icon参照を追加/更新
+      if (hasAppleTouchIcon) {
+        content = content.replace(/<link\s+rel=["']apple-touch-icon["'][^>]*>/gi, '');
       }
-      
-      // PWA用のマニフェストアイコンも追加（Androidでホームスクリーンに追加する際に使用）
+      iconTags.push('<link rel="apple-touch-icon" href="/apple-touch-icon.png" />');
+      iconTags.push('<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />');
+
+      // manifest
       const hasManifest = /<link\s+rel=["']manifest["'][^>]*>/i.test(content);
-      if (!hasManifest) {
-        iconTags.push('<link rel="manifest" href="/manifest.json" />');
+      if (hasManifest) {
+        content = content.replace(/<link\s+rel=["']manifest["'][^>]*>/gi, '');
       }
-      
-      // Android向けのtheme-colorメタタグを追加
+      iconTags.push('<link rel="manifest" href="/manifest.json" />');
+
+      // theme-color
       const hasThemeColor = /<meta\s+name=["']theme-color["'][^>]*>/i.test(content);
-      if (!hasThemeColor) {
-        iconTags.push('<meta name="theme-color" content="#6A4028" />');
-      } else {
-        // 既存のtheme-colorを更新
-        content = content.replace(
-          /<meta\s+name=["']theme-color["'][^>]*>/gi,
-          '<meta name="theme-color" content="#6A4028" />'
-        );
+      if (hasThemeColor) {
+        content = content.replace(/<meta\s+name=["']theme-color["'][^>]*>/gi, '');
       }
-      
-      // Android向けのmobile-web-app-capableメタタグを追加
+      iconTags.push('<meta name="theme-color" content="#6A4028" />');
+
+      // mobile-web-app-capable
       const hasMobileWebApp = /<meta\s+name=["']mobile-web-app-capable["'][^>]*>/i.test(content);
-      if (!hasMobileWebApp) {
-        iconTags.push('<meta name="mobile-web-app-capable" content="yes" />');
+      if (hasMobileWebApp) {
+        content = content.replace(/<meta\s+name=["']mobile-web-app-capable["'][^>]*>/gi, '');
       }
-      
-      if (iconTags.length > 0) {
-        const iconTagsString = iconTags.join('\n');
-        content = content.slice(0, headEndIndex) + iconTagsString + '\n' + content.slice(headEndIndex);
-        modified = true;
-      }
+      iconTags.push('<meta name="mobile-web-app-capable" content="yes" />');
+
+      const iconTagsString = iconTags.join('\n');
+      content = content.replace('</head>', `${iconTagsString}\n</head>`);
+      modified = true;
     }
     
     if (modified) {
@@ -178,36 +171,11 @@ function updateManifest() {
   if (fs.existsSync(manifestPath)) {
     try {
       const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      
+      // すでにiconとscreenshotsが含まれていれば、変更しない
+      // start_urlとdisplayだけを確認
       let modified = false;
       
-      // アイコンをすべてicon.pngに統一
-      // Android Chromeで必要なサイズ: 192x192, 512x512
-      const requiredIcons = [
-        {
-          src: '/assets/images/icon.png',
-          sizes: '192x192',
-          type: 'image/png',
-          purpose: 'any maskable'
-        },
-        {
-          src: '/assets/images/icon.png',
-          sizes: '512x512',
-          type: 'image/png',
-          purpose: 'any maskable'
-        }
-      ];
-      
-      // 既存のアイコンをすべて置き換え
-      if (manifest.icons && Array.isArray(manifest.icons)) {
-        manifest.icons = requiredIcons;
-        modified = true;
-      } else {
-        // アイコンが存在しない場合は追加
-        manifest.icons = requiredIcons;
-        modified = true;
-      }
-      
-      // start_urlとdisplayも確認（PWAとして動作するために必要）
       if (!manifest.start_url) {
         manifest.start_url = '/';
         modified = true;
@@ -220,7 +188,7 @@ function updateManifest() {
       
       if (modified) {
         fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
-        console.log('✓ Updated manifest.json with icon.png for Android PWA');
+        console.log('✓ Updated manifest.json with start_url and display');
       }
     } catch (error) {
       console.warn(`⚠ Warning: Could not update manifest.json: ${error.message}`);

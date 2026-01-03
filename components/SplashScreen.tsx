@@ -1,4 +1,3 @@
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useEffect, useState } from 'react';
 import { Animated, Image, Platform, StyleSheet, View } from 'react-native';
 import { ThemedText } from './themed-text';
@@ -8,7 +7,6 @@ interface SplashScreenProps {
 }
 
 export function CustomSplashScreen({ onFinish }: SplashScreenProps) {
-  const colorScheme = useColorScheme();
   const [fadeAnim] = useState(new Animated.Value(0));
   const [scaleAnim] = useState(new Animated.Value(0.8));
 
@@ -42,7 +40,7 @@ export function CustomSplashScreen({ onFinish }: SplashScreenProps) {
     return () => clearTimeout(timer);
   }, [fadeAnim, scaleAnim, onFinish]);
 
-  const backgroundColor = colorScheme === 'dark' ? '#000000' : '#ffffff';
+  const backgroundColor = '#FCFAF2';
 
   return (
     <View style={[styles.container, { backgroundColor }]}>

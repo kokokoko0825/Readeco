@@ -1,0 +1,33 @@
+{
+  "name": "Readeco",
+  "short_name": "Readeco",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FCFAF2",
+  "theme_color": "#6A4028",
+  "description": "Readecoで本と友達の読書体験をつなぐ",
+  "icons": [
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "2048x2048",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}
