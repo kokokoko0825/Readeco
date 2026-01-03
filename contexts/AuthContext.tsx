@@ -150,13 +150,17 @@ async function preloadNewBooksData(userBooks: BookData[]): Promise<PreloadedNewB
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    // 2年前の日付を計算
+    const twoYearsAgo = new Date(today);
+    twoYearsAgo.setFullYear(today.getFullYear() - 2);
 
     const allAvailableBooks: BookWithFormatted[] = [];
     const allPreorderBooks: BookWithFormatted[] = [];
 
-    // 少ない並列度でゆっくり取得
-    const BATCH_SIZE = 1;
-    const BATCH_DELAY = 3000;
+    // バックグラウンドプリロードの最適化設定
+    const BATCH_SIZE = 3; // 同時に検索する著者数（並列度を上げる）
+    const BATCH_DELAY = 1000; // バッチ間の待機時間（1秒に短縮）
 
     const searchAuthorBooks = async (author: string): Promise<{ available: BookWithFormatted[]; preorder: BookWithFormatted[] }> => {
       try {
@@ -180,6 +184,11 @@ async function preloadNewBooksData(userBooks: BookData[]): Promise<PreloadedNewB
 
           if (publishDate) {
             if (publishDate <= today) {
+              // 2年前より前の本は除外
+              if (publishDate < twoYearsAgo) {
+                continue;
+              }
+              
               const newestPublishDate = newestPublishDateByAuthor.get(author);
               if (newestPublishDate && publishDate < newestPublishDate) {
                 continue;
@@ -256,6 +265,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isPreloadingBooks, setIsPreloadingBooks] = useState(false);
   const userBooksRef = useRef<BookData[]>([]);
   const unsubscribeUserBooksRef = useRef<(() => void) | null>(null);
+  const preloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // 認証状態の変更を監視
@@ -301,14 +311,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
           unsubscribeUserBooksRef.current = subscribeUserBooks(user.uid, (books) => {
             userBooksRef.current = books;
             
-            // バックグラウンドプリロード開始
-            setIsPreloadingBooks(true);
-            preloadNewBooksData(books).then((data) => {
-              if (data) {
-                setPreloadedNewBooksData(data);
-              }
-              setIsPreloadingBooks(false);
-            });
+            // バックグラウンドプリロード開始（デバウンス：500ms）
+            if (preloadTimeoutRef.current) {
+              clearTimeout(preloadTimeoutRef.current);
+            }
+            
+            preloadTimeoutRef.current = setTimeout(() => {
+              setIsPreloadingBooks(true);
+              preloadNewBooksData(books).then((data) => {
+                if (data) {
+                  setPreloadedNewBooksData(data);
+                }
+                setIsPreloadingBooks(false);
+              });
+            }, 500);
           });
         } catch (error) {
           console.error('Error setting up background preload:', error);
@@ -328,6 +344,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       unsubscribe();
       if (unsubscribeUserBooksRef.current) {
         unsubscribeUserBooksRef.current();
+      }
+      if (preloadTimeoutRef.current) {
+        clearTimeout(preloadTimeoutRef.current);
       }
     };
   }, []);

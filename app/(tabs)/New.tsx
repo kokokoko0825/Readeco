@@ -239,6 +239,10 @@ export default function NewScreen() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
+        // 2年前の日付を計算
+        const twoYearsAgo = new Date(today);
+        twoYearsAgo.setFullYear(today.getFullYear() - 2);
+
         const allAvailableBooks: NewBook[] = [];
         const allPreorderBooks: NewBook[] = [];
 
@@ -284,6 +288,11 @@ export default function NewScreen() {
               if (publishDate) {
                 // 発売日が今日以前 → 発売済み
                 if (publishDate <= today) {
+                  // 2年前より前の本は除外
+                  if (publishDate < twoYearsAgo) {
+                    continue;
+                  }
+                  
                   // ユーザーの登録済み本の最も新しい発売日より前の本は除外
                   const newestPublishDate = newestPublishDateByAuthor.get(author);
                   if (newestPublishDate && publishDate < newestPublishDate) {
