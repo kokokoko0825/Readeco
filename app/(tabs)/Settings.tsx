@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -19,7 +19,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { showAlert } from '@/utils/alert';
 import { copyToClipboard } from '@/utils/clipboard';
-import { getUserId, signOutUser } from '@/utils/firebase-auth';
+import {
+  deleteUserAccount,
+  getUserEmail,
+  getUserId,
+  isGoogleUser,
+  signOutUser,
+  updateUserEmail,
+  updateUserPassword,
+} from '@/utils/firebase-auth';
 import {
   addFriend,
   getUserFriends,
@@ -27,20 +35,48 @@ import {
   searchUserByUserId,
   type FriendRelation,
 } from '@/utils/firebase-friends';
-import { getUserSettings, setUserSettings, type UserSettings } from '@/utils/firebase-users';
+import {
+  getUserSettings,
+  setUserSettings,
+  type UserSettings,
+} from '@/utils/firebase-users';
+
+type ModalType =
+  | 'displayName'
+  | 'email'
+  | 'password'
+  | 'deleteAccount'
+  | 'addFriend'
+  | null;
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const { user } = useAuth();
   const [userId, setUserId] = useState<string | null>(null);
-  const [userSettings, setUserSettingsState] = useState<UserSettings | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userSettings, setUserSettingsState] = useState<UserSettings | null>(
+    null
+  );
   const [friends, setFriends] = useState<FriendRelation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showUserSettingsModal, setShowUserSettingsModal] = useState(false);
-  const [showFriendModal, setShowFriendModal] = useState(false);
-  const [displayName, setDisplayName] = useState('');
-  const [friendUserId, setFriendUserId] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isGoogleAuth, setIsGoogleAuth] = useState(false);
+
+  // モーダル管理
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+
+  // フォーム状態
+  const [displayName, setDisplayName] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [friendUserId, setFriendUserId] = useState('');
+  const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('');
+
+  const isDark = colorScheme === 'dark';
+  const cardBg = isDark ? '#1E1E1E' : '#FCFAF2';
+  const borderColor = '#6A4028';
 
   useEffect(() => {
     if (user) {
@@ -52,11 +88,16 @@ export default function SettingsScreen() {
     try {
       setLoading(true);
       const id = getUserId();
+      const email = getUserEmail();
+      const googleAuth = isGoogleUser();
+
       if (!id) {
         setLoading(false);
         return;
       }
       setUserId(id);
+      setUserEmail(email);
+      setIsGoogleAuth(googleAuth);
 
       // ユーザー設定を取得
       const settings = await getUserSettings(id);
@@ -64,7 +105,6 @@ export default function SettingsScreen() {
         setUserSettingsState(settings);
         setDisplayName(settings.displayName);
       } else {
-        // 新規ユーザーの場合はデフォルト設定を作成
         await setUserSettings(id, { displayName: 'ユーザー' });
         const newSettings = await getUserSettings(id);
         if (newSettings) {
@@ -84,7 +124,33 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSaveUserSettings = async () => {
+  const resetModalState = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setNewEmail('');
+    setFriendUserId('');
+    setDeleteConfirmPassword('');
+  };
+
+  const openModal = (type: ModalType) => {
+    resetModalState();
+    if (type === 'displayName') {
+      setDisplayName(userSettings?.displayName || '');
+    }
+    if (type === 'email') {
+      setNewEmail(userEmail || '');
+    }
+    setActiveModal(type);
+  };
+
+  const closeModal = () => {
+    setActiveModal(null);
+    resetModalState();
+  };
+
+  // 表示名を保存
+  const handleSaveDisplayName = async () => {
     if (!userId || !displayName.trim()) {
       showAlert('エラー', '表示名を入力してください');
       return;
@@ -97,16 +163,89 @@ export default function SettingsScreen() {
       if (updatedSettings) {
         setUserSettingsState(updatedSettings);
       }
-      setShowUserSettingsModal(false);
-      showAlert('保存完了', '設定を保存しました');
+      closeModal();
+      showAlert('完了', '表示名を変更しました');
     } catch (error) {
-      console.error('Error saving user settings:', error);
-      showAlert('エラー', '設定の保存に失敗しました');
+      console.error('Error saving display name:', error);
+      showAlert('エラー', '表示名の保存に失敗しました');
     } finally {
       setSaving(false);
     }
   };
 
+  // メールアドレスを変更
+  const handleChangeEmail = async () => {
+    if (!newEmail.trim()) {
+      showAlert('エラー', 'メールアドレスを入力してください');
+      return;
+    }
+    if (!currentPassword) {
+      showAlert('エラー', '現在のパスワードを入力してください');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await updateUserEmail(newEmail.trim(), currentPassword);
+      setUserEmail(newEmail.trim());
+      closeModal();
+      showAlert('完了', 'メールアドレスを変更しました');
+    } catch (error) {
+      console.error('Error changing email:', error);
+      showAlert('エラー', error instanceof Error ? error.message : 'メールアドレスの変更に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // パスワードを変更
+  const handleChangePassword = async () => {
+    if (!currentPassword) {
+      showAlert('エラー', '現在のパスワードを入力してください');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      showAlert('エラー', '新しいパスワードは6文字以上で入力してください');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showAlert('エラー', '新しいパスワードが一致しません');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await updateUserPassword(currentPassword, newPassword);
+      closeModal();
+      showAlert('完了', 'パスワードを変更しました');
+    } catch (error) {
+      console.error('Error changing password:', error);
+      showAlert('エラー', error instanceof Error ? error.message : 'パスワードの変更に失敗しました');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // アカウント削除
+  const handleDeleteAccount = async () => {
+    if (!deleteConfirmPassword) {
+      showAlert('エラー', 'パスワードを入力してください');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await deleteUserAccount(deleteConfirmPassword);
+      closeModal();
+      // 削除後は自動的にログアウト状態になる
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      showAlert('エラー', error instanceof Error ? error.message : 'アカウントの削除に失敗しました');
+      setSaving(false);
+    }
+  };
+
+  // フレンド追加
   const handleAddFriend = async () => {
     if (!userId || !friendUserId.trim()) {
       showAlert('エラー', 'ユーザーIDを入力してください');
@@ -115,7 +254,6 @@ export default function SettingsScreen() {
 
     try {
       setSaving(true);
-      // ユーザーを検索
       const friendUser = await searchUserByUserId(friendUserId.trim());
       if (!friendUser) {
         showAlert('エラー', 'ユーザーが見つかりませんでした');
@@ -124,35 +262,32 @@ export default function SettingsScreen() {
 
       await addFriend(userId, friendUser.userId, friendUser.displayName);
       setFriendUserId('');
-      setShowFriendModal(false);
-      await loadData(); // フレンド一覧を再読み込み
-      showAlert('追加完了', 'フレンドを追加しました');
+      closeModal();
+      await loadData();
+      showAlert('完了', 'フレンドを追加しました');
     } catch (error) {
       console.error('Error adding friend:', error);
-      if (error instanceof Error) {
-        showAlert('エラー', error.message);
-      } else {
-        showAlert('エラー', 'フレンドの追加に失敗しました');
-      }
+      showAlert('エラー', error instanceof Error ? error.message : 'フレンドの追加に失敗しました');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRemoveFriend = async (friendRelationId: string, friendName: string) => {
+  // フレンド削除
+  const handleRemoveFriend = async (
+    friendRelationId: string,
+    friendName: string
+  ) => {
     showAlert('削除確認', `${friendName}をフレンドリストから削除しますか？`, [
-      {
-        text: 'キャンセル',
-        style: 'cancel',
-      },
+      { text: 'キャンセル', style: 'cancel' },
       {
         text: '削除',
         style: 'destructive',
         onPress: async () => {
           try {
             await removeFriend(friendRelationId);
-            await loadData(); // フレンド一覧を再読み込み
-            showAlert('削除完了', 'フレンドを削除しました');
+            await loadData();
+            showAlert('完了', 'フレンドを削除しました');
           } catch (error) {
             console.error('Error removing friend:', error);
             showAlert('エラー', 'フレンドの削除に失敗しました');
@@ -162,65 +297,103 @@ export default function SettingsScreen() {
     ]);
   };
 
+  // ユーザーIDをコピー
   const handleCopyUserId = async () => {
     if (!userId) return;
     const success = await copyToClipboard(userId);
     if (success) {
       showAlert('コピー完了', 'ユーザーIDをクリップボードにコピーしました');
     } else {
-      showAlert('エラー', 'ユーザーIDのコピーに失敗しました');
+      showAlert('エラー', 'コピーに失敗しました');
     }
   };
 
+  // サインアウト
   const handleSignOut = async () => {
-    console.log('handleSignOut called'); // デバッグ用
-    
-    // Web版ではwindow.confirmを使用、ネイティブ版ではAlert.alertを使用
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm('ログアウトしますか？');
-      if (!confirmed) {
-        return;
-      }
-      
+    const doSignOut = async () => {
       try {
-        // FirebaseのsignOut()を呼び出すと、onAuthStateChangedが自動的に発火して
-        // AuthContextのuserがnullになり、AuthGuardが自動的に/authにリダイレクトする
         await signOutUser();
-        // 明示的なリダイレクトは不要（AuthGuardが自動的に処理する）
       } catch (error) {
         console.error('Error signing out:', error);
         showAlert('エラー', 'サインアウトに失敗しました');
       }
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('サインアウトしますか？')) {
+        await doSignOut();
+      }
     } else {
-      showAlert('サインアウト', 'ログアウトしますか？', [
-        {
-          text: 'キャンセル',
-          style: 'cancel',
-        },
-        {
-          text: 'サインアウト',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // FirebaseのsignOut()を呼び出すと、onAuthStateChangedが自動的に発火して
-              // AuthContextのuserがnullになり、AuthGuardが自動的に/authにリダイレクトする
-              await signOutUser();
-              // 明示的なリダイレクトは不要（AuthGuardが自動的に処理する）
-            } catch (error) {
-              console.error('Error signing out:', error);
-              showAlert('エラー', 'サインアウトに失敗しました');
-            }
-          },
-        },
+      showAlert('サインアウト', 'サインアウトしますか？', [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: 'サインアウト', style: 'destructive', onPress: doSignOut },
       ]);
     }
   };
+
+  // 設定項目コンポーネント
+  const SettingItem = ({
+    icon,
+    label,
+    value,
+    onPress,
+    showArrow = true,
+    danger = false,
+    disabled = false,
+  }: {
+    icon: IconName;
+    label: string;
+    value?: string;
+    onPress: () => void;
+    showArrow?: boolean;
+    danger?: boolean;
+    disabled?: boolean;
+  }) => (
+    <Pressable
+      style={[
+        styles.settingItem,
+        { borderBottomColor: borderColor },
+        disabled && styles.settingItemDisabled,
+      ]}
+      onPress={onPress}
+      disabled={disabled}>
+      <View style={styles.settingItemLeft}>
+        <Icon
+          name={icon}
+          size={22}
+          color={danger ? '#E53935' : Colors[colorScheme ?? 'light'].text}
+          style={styles.settingItemIcon}
+        />
+        <ThemedText
+          style={[styles.settingItemLabel, danger && styles.dangerText]}>
+          {label}
+        </ThemedText>
+      </View>
+      <View style={styles.settingItemRight}>
+        {value && (
+          <ThemedText style={styles.settingItemValue} numberOfLines={1}>
+            {value}
+          </ThemedText>
+        )}
+        {showArrow && (
+          <Icon
+            name="chevron-right"
+            size={20}
+            color={isDark ? '#666' : '#999'}
+          />
+        )}
+      </View>
+    </Pressable>
+  );
 
   if (loading) {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors[colorScheme ?? 'light'].text} />
+          <ActivityIndicator
+            size="large"
+            color={Colors[colorScheme ?? 'light'].text}
+          />
           <ThemedText style={styles.loadingText}>読み込み中...</ThemedText>
         </View>
       </ThemedView>
@@ -229,172 +402,505 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ScrollView style={styles.scrollView}>
-        {/* ユーザー情報セクション */}
-        <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>ユーザー情報</ThemedText>
-          <View style={styles.userInfoContainer}>
-            <ThemedText style={styles.userInfoLabel}>表示名:</ThemedText>
-            <ThemedText style={styles.userInfoValue}>
-              {userSettings?.displayName || '未設定'}
-            </ThemedText>
-          </View>
-          {userId && (
-            <View style={styles.userInfoContainer}>
-              <ThemedText style={styles.userInfoLabel}>ユーザーID:</ThemedText>
-              <View style={styles.userIdContainer}>
-                <ThemedText style={styles.userInfoValue} numberOfLines={1}>
-                  {userId}
-                </ThemedText>
-                <Pressable style={styles.copyButton} onPress={handleCopyUserId}>
-                  <Icon
-                    name="content-copy"
-                    size={18}
-                    color={Colors[colorScheme ?? 'light'].text}
-                  />
-                </Pressable>
-              </View>
-            </View>
-          )}
-          <Pressable
-            style={styles.editButton}
-            onPress={() => setShowUserSettingsModal(true)}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}>
+        {/* プロフィールヘッダー */}
+        <View style={[styles.profileHeader, { backgroundColor: cardBg }]}>
+          <View style={styles.avatarContainer}>
             <Icon
-              name="edit"
-              size={20}
-              color="#fff"
-              style={styles.editButtonIcon}
+              name="account-circle"
+              size={80}
+              color={Colors[colorScheme ?? 'light'].tint}
             />
-            <ThemedText style={styles.editButtonText}>ユーザー設定を編集</ThemedText>
+          </View>
+          <ThemedText style={styles.profileName}>
+            {userSettings?.displayName || 'ユーザー'}
+          </ThemedText>
+          <ThemedText style={styles.profileEmail}>
+            {userEmail || ''}
+          </ThemedText>
+          <Pressable style={styles.userIdBadge} onPress={handleCopyUserId}>
+            <ThemedText style={styles.userIdText} numberOfLines={1}>
+              ID: {userId?.slice(0, 12)}...
+            </ThemedText>
+            <Icon
+              name="content-copy"
+              size={14}
+              color={isDark ? '#888' : '#666'}
+            />
           </Pressable>
         </View>
 
-        {/* フレンドセクション */}
+        {/* アカウント設定 */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>アカウント設定</ThemedText>
+          <View style={[styles.card, { backgroundColor: cardBg }]}>
+            <SettingItem
+              icon="person"
+              label="表示名を変更"
+              value={userSettings?.displayName}
+              onPress={() => openModal('displayName')}
+            />
+            <SettingItem
+              icon="email"
+              label="メールアドレスを変更"
+              value={userEmail || ''}
+              onPress={() => openModal('email')}
+              disabled={isGoogleAuth}
+            />
+            <SettingItem
+              icon="lock"
+              label="パスワードを変更"
+              onPress={() => openModal('password')}
+              disabled={isGoogleAuth}
+            />
+          </View>
+          {isGoogleAuth && (
+            <ThemedText style={styles.hintText}>
+              Google認証でログインしているため、メールアドレスとパスワードの変更はできません
+            </ThemedText>
+          )}
+        </View>
+
+        {/* フレンド */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText style={styles.sectionTitle}>フレンド</ThemedText>
             <Pressable
-              style={styles.addButton}
-              onPress={() => setShowFriendModal(true)}>
+              style={styles.addFriendButton}
+              onPress={() => openModal('addFriend')}>
               <Icon name="person-add" size={20} color="#fff" />
             </Pressable>
           </View>
-          {friends.length === 0 ? (
-            <ThemedText style={styles.emptyText}>フレンドが登録されていません</ThemedText>
-          ) : (
-            friends.map((friend) => (
-              <View key={friend.id} style={styles.friendItem}>
-                <View style={styles.friendInfo}>
-                  <Icon
-                    name="person"
-                    size={24}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={styles.friendIcon}
-                  />
-                  <View style={styles.friendDetails}>
-                    <ThemedText style={styles.friendName}>{friend.friendDisplayName}</ThemedText>
-                    <ThemedText style={styles.friendId}>{friend.friendId}</ThemedText>
-                  </View>
-                </View>
-                <Pressable
-                  style={styles.removeFriendButton}
-                  onPress={() => handleRemoveFriend(friend.id!, friend.friendDisplayName)}>
-                  <Icon name="delete-outline" size={20} color="#ff4444" />
-                </Pressable>
+          <View style={[styles.card, { backgroundColor: cardBg }]}>
+            {friends.length === 0 ? (
+              <View style={styles.emptyFriends}>
+                <Icon
+                  name="people-outline"
+                  size={40}
+                  color={isDark ? '#555' : '#ccc'}
+                />
+                <ThemedText style={styles.emptyText}>
+                  フレンドがいません
+                </ThemedText>
+                <ThemedText style={styles.emptySubText}>
+                  ユーザーIDを共有してフレンドを追加しましょう
+                </ThemedText>
               </View>
-            ))
+            ) : (
+              friends.map((friend, index) => (
+                <View
+                  key={friend.id}
+                  style={[
+                    styles.friendItem,
+                    index < friends.length - 1 && {
+                      borderBottomWidth: 1,
+                      borderBottomColor: borderColor,
+                    },
+                  ]}>
+                  <View style={styles.friendInfo}>
+                    <Icon
+                      name="account-circle"
+                      size={40}
+                      color={Colors[colorScheme ?? 'light'].tint}
+                    />
+                    <View style={styles.friendDetails}>
+                      <ThemedText style={styles.friendName}>
+                        {friend.friendDisplayName}
+                      </ThemedText>
+                      <ThemedText style={styles.friendId}>
+                        {friend.friendId.slice(0, 12)}...
+                      </ThemedText>
+                    </View>
+                  </View>
+                  <Pressable
+                    style={styles.removeFriendButton}
+                    onPress={() =>
+                      handleRemoveFriend(friend.id!, friend.friendDisplayName)
+                    }>
+                    <Icon name="close" size={20} color="#999" />
+                  </Pressable>
+                </View>
+              ))
+            )}
+          </View>
+        </View>
+
+        {/* 危険ゾーン */}
+        <View style={styles.section}>
+          <ThemedText style={[styles.sectionTitle, styles.dangerText]}>
+            危険な操作
+          </ThemedText>
+          <View style={[styles.card, { backgroundColor: cardBg }]}>
+            <SettingItem
+              icon="logout"
+              label="サインアウト"
+              onPress={handleSignOut}
+              showArrow={false}
+              danger
+            />
+            <SettingItem
+              icon="delete-forever"
+              label="アカウントを削除"
+              onPress={() => openModal('deleteAccount')}
+              showArrow={false}
+              danger
+              disabled={isGoogleAuth}
+            />
+          </View>
+          {isGoogleAuth && (
+            <ThemedText style={styles.hintText}>
+              Google認証アカウントの削除は、Googleアカウント設定から行ってください
+            </ThemedText>
           )}
         </View>
 
-        {/* サインアウトセクション */}
-        <View style={styles.section}>
-          <Pressable
-            style={styles.signOutButton}
-            onPress={handleSignOut}
-            // Web版ではonClickも追加
-            {...(Platform.OS === 'web' ? { onClick: handleSignOut } : {})}>
-            <Icon name="logout" size={20} color="#ff4444" style={styles.signOutIcon} />
-            <ThemedText style={styles.signOutText}>サインアウト</ThemedText>
-          </Pressable>
-        </View>
+        <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* ユーザー設定モーダル */}
+      {/* 表示名変更モーダル */}
       <Modal
-        visible={showUserSettingsModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowUserSettingsModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.modalContent,
-              { backgroundColor: Colors[colorScheme ?? 'light'].background },
-            ]}>
-            <View style={styles.modalHeader}>
-              <ThemedText style={styles.modalTitle}>ユーザー設定</ThemedText>
-              <Pressable onPress={() => setShowUserSettingsModal(false)}>
-                <Icon
-                  name="close"
-                  size={24}
-                  color={Colors[colorScheme ?? 'light'].text}
+        visible={activeModal === 'displayName'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContent, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>表示名を変更</ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <View style={styles.modalBody}>
+                <ThemedText style={styles.inputLabel}>新しい表示名</ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={displayName}
+                  onChangeText={setDisplayName}
+                  placeholder="表示名を入力"
+                  placeholderTextColor="#999"
                 />
-              </Pressable>
-            </View>
-            <View style={styles.modalBody}>
-              <ThemedText style={styles.inputLabel}>表示名</ThemedText>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: Colors[colorScheme ?? 'light'].text, borderColor: '#E0E0E0' },
-                ]}
-                value={displayName}
-                onChangeText={setDisplayName}
-                placeholder="表示名を入力"
-                placeholderTextColor="#999"
-              />
-            </View>
-            <View style={styles.modalFooter}>
-              <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setShowUserSettingsModal(false)}>
-                <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSaveUserSettings}
-                disabled={saving}>
-                <ThemedText style={styles.saveButtonText}>
-                  {saving ? '保存中...' : '保存'}
+              </View>
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={closeModal}>
+                  <ThemedText style={styles.cancelButtonText}>
+                    キャンセル
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.primaryButton]}
+                  onPress={handleSaveDisplayName}
+                  disabled={saving}>
+                  <ThemedText style={styles.primaryButtonText}>
+                    {saving ? '保存中...' : '保存'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* メールアドレス変更モーダル */}
+      <Modal
+        visible={activeModal === 'email'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContent, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>
+                  メールアドレスを変更
                 </ThemedText>
-              </Pressable>
-            </View>
-          </View>
-        </View>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <View style={styles.modalBody}>
+                <ThemedText style={styles.inputLabel}>
+                  新しいメールアドレス
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={newEmail}
+                  onChangeText={setNewEmail}
+                  placeholder="新しいメールアドレス"
+                  placeholderTextColor="#999"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <ThemedText style={[styles.inputLabel, { marginTop: 16 }]}>
+                  現在のパスワード
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="パスワードを入力"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={closeModal}>
+                  <ThemedText style={styles.cancelButtonText}>
+                    キャンセル
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.primaryButton]}
+                  onPress={handleChangeEmail}
+                  disabled={saving}>
+                  <ThemedText style={styles.primaryButtonText}>
+                    {saving ? '変更中...' : '変更'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* パスワード変更モーダル */}
+      <Modal
+        visible={activeModal === 'password'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContent, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>
+                  パスワードを変更
+                </ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <View style={styles.modalBody}>
+                <ThemedText style={styles.inputLabel}>
+                  現在のパスワード
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="現在のパスワード"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+                <ThemedText style={[styles.inputLabel, { marginTop: 16 }]}>
+                  新しいパスワード
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="新しいパスワード（6文字以上）"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+                <ThemedText style={[styles.inputLabel, { marginTop: 16 }]}>
+                  新しいパスワード（確認）
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="パスワードを再入力"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={closeModal}>
+                  <ThemedText style={styles.cancelButtonText}>
+                    キャンセル
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.primaryButton]}
+                  onPress={handleChangePassword}
+                  disabled={saving}>
+                  <ThemedText style={styles.primaryButtonText}>
+                    {saving ? '変更中...' : '変更'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* アカウント削除モーダル */}
+      <Modal
+        visible={activeModal === 'deleteAccount'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContent, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={[styles.modalTitle, styles.dangerText]}>
+                  アカウントを削除
+                </ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <View style={styles.modalBody}>
+                <View style={styles.warningBox}>
+                  <Icon name="warning" size={24} color="#E53935" />
+                  <ThemedText style={styles.warningText}>
+                    この操作は取り消せません。すべてのデータが削除されます。
+                  </ThemedText>
+                </View>
+                <ThemedText style={[styles.inputLabel, { marginTop: 16 }]}>
+                  パスワードを入力して確認
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      color: Colors[colorScheme ?? 'light'].text,
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
+                    },
+                  ]}
+                  value={deleteConfirmPassword}
+                  onChangeText={setDeleteConfirmPassword}
+                  placeholder="パスワードを入力"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+              </View>
+              <View style={styles.modalFooter}>
+                <Pressable
+                  style={[styles.modalButton, styles.cancelButton]}
+                  onPress={closeModal}>
+                  <ThemedText style={styles.cancelButtonText}>
+                    キャンセル
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.dangerButton]}
+                  onPress={handleDeleteAccount}
+                  disabled={saving}>
+                  <ThemedText style={styles.dangerButtonText}>
+                    {saving ? '削除中...' : '削除する'}
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* フレンド追加モーダル */}
       <Modal
-        visible={showFriendModal}
-        transparent={true}
+        visible={activeModal === 'addFriend'}
+        transparent
         animationType="fade"
-        onRequestClose={() => setShowFriendModal(false)}>
+        onRequestClose={closeModal}>
         <KeyboardAvoidingView
-          style={styles.modalOverlayFull}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
-          <Pressable
-            style={styles.modalOverlayFull}
-            onPress={() => setShowFriendModal(false)}>
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
             <Pressable
-              style={[
-                styles.modalContentFull,
-                { backgroundColor: Colors[colorScheme ?? 'light'].background },
-              ]}
+              style={[styles.modalContent, { backgroundColor: cardBg }]}
               onPress={(e) => e.stopPropagation()}>
               <View style={styles.modalHeader}>
-                <ThemedText style={styles.modalTitle}>フレンドを追加</ThemedText>
-                <Pressable onPress={() => setShowFriendModal(false)}>
+                <ThemedText style={styles.modalTitle}>
+                  フレンドを追加
+                </ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
                   <Icon
                     name="close"
                     size={24}
@@ -407,10 +913,10 @@ export default function SettingsScreen() {
                 <TextInput
                   style={[
                     styles.input,
-                    { 
+                    {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                      borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      borderColor: borderColor,
                     },
                   ]}
                   value={friendUserId}
@@ -420,20 +926,22 @@ export default function SettingsScreen() {
                   autoCapitalize="none"
                 />
                 <ThemedText style={styles.inputHint}>
-                  フレンドのユーザーIDを入力して追加してください
+                  フレンドにあなたのユーザーIDを教えてもらい、入力してください
                 </ThemedText>
               </View>
               <View style={styles.modalFooter}>
                 <Pressable
                   style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setShowFriendModal(false)}>
-                  <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
+                  onPress={closeModal}>
+                  <ThemedText style={styles.cancelButtonText}>
+                    キャンセル
+                  </ThemedText>
                 </Pressable>
                 <Pressable
-                  style={[styles.modalButton, styles.saveButton]}
+                  style={[styles.modalButton, styles.primaryButton]}
                   onPress={handleAddFriend}
                   disabled={saving}>
-                  <ThemedText style={styles.saveButtonText}>
+                  <ThemedText style={styles.primaryButtonText}>
                     {saving ? '追加中...' : '追加'}
                   </ThemedText>
                 </Pressable>
@@ -453,6 +961,9 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    paddingBottom: 40,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -462,64 +973,104 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontSize: 16,
   },
+
+  // プロフィールヘッダー
+  profileHeader: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  avatarContainer: {
+    marginBottom: 12,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+    opacity: 0.7,
+    marginBottom: 12,
+  },
+  userIdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    gap: 6,
+  },
+  userIdText: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+
+  // セクション
   section: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    paddingHorizontal: 16,
+    marginBottom: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  userInfoContainer: {
-    flexDirection: 'row',
     marginBottom: 12,
   },
-  userInfoLabel: {
-    fontSize: 14,
+  sectionTitle: {
+    fontSize: 13,
     fontWeight: '600',
-    minWidth: 100,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    opacity: 0.6,
+    marginBottom: 12,
+    marginLeft: 4,
   },
-  userInfoValue: {
-    fontSize: 14,
-    flex: 1,
+
+  // カード
+  card: {
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  userIdContainer: {
+
+  // 設定項目
+  settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    gap: 8,
-  },
-  copyButton: {
-    padding: 4,
-    borderRadius: 4,
-  },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#838A2D',
-    paddingVertical: 12,
+    justifyContent: 'space-between',
+    paddingVertical: 14,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 12,
+    borderBottomWidth: 1,
   },
-  editButtonIcon: {
-    marginRight: 8,
+  settingItemDisabled: {
+    opacity: 0.5,
   },
-  editButtonText: {
-    color: '#fff',
+  settingItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingItemIcon: {
+    marginRight: 12,
+  },
+  settingItemLabel: {
     fontSize: 16,
-    fontWeight: '600',
   },
-  addButton: {
+  settingItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: '50%',
+  },
+  settingItemValue: {
+    fontSize: 14,
+    opacity: 0.6,
+    marginRight: 4,
+  },
+
+  // フレンド
+  addFriendButton: {
     backgroundColor: '#838A2D',
     width: 36,
     height: 36,
@@ -527,71 +1078,85 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  emptyFriends: {
+    alignItems: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+  },
   emptyText: {
-    fontSize: 14,
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
     opacity: 0.7,
+  },
+  emptySubText: {
+    fontSize: 13,
+    opacity: 0.5,
+    marginTop: 4,
     textAlign: 'center',
-    paddingVertical: 20,
   },
   friendItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    paddingHorizontal: 16,
   },
   friendInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-  friendIcon: {
-    marginRight: 12,
-  },
   friendDetails: {
+    marginLeft: 12,
     flex: 1,
   },
   friendName: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 4,
   },
   friendId: {
     fontSize: 12,
-    opacity: 0.6,
+    opacity: 0.5,
+    marginTop: 2,
   },
   removeFriendButton: {
     padding: 8,
   },
+
+  // 危険ゾーン
+  dangerText: {
+    color: '#E53935',
+  },
+
+  // ヒントテキスト
+  hintText: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 8,
+    marginLeft: 4,
+    lineHeight: 18,
+  },
+
+  // 下部スペーサー
+  bottomSpacer: {
+    height: 40,
+  },
+
+  // モーダル
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalOverlayFull: {
-    flex: 1,
+    width: '100%',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
-  modalContentFull: {
+  modalContent: {
     borderRadius: 16,
     padding: 24,
     width: '100%',
-    maxWidth: 400,
     shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8,
@@ -606,9 +1171,48 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
   },
-  modalBody: {
-    marginBottom: 20,
+  modalCloseButton: {
+    padding: 4,
   },
+  modalBody: {
+    marginBottom: 24,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#E5E5E5',
+  },
+  cancelButtonText: {
+    color: '#333',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  primaryButton: {
+    backgroundColor: '#838A2D',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  dangerButton: {
+    backgroundColor: '#E53935',
+  },
+  dangerButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // 入力
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -617,59 +1221,29 @@ const styles = StyleSheet.create({
   input: {
     borderWidth: 1,
     borderRadius: 8,
-    padding: 12,
+    padding: 14,
     fontSize: 16,
-    marginBottom: 8,
   },
   inputHint: {
     fontSize: 12,
-    opacity: 0.6,
-    marginTop: 4,
+    opacity: 0.5,
+    marginTop: 8,
+    lineHeight: 18,
   },
-  modalFooter: {
+
+  // 警告ボックス
+  warningBox: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(229, 57, 53, 0.1)',
+    padding: 12,
+    borderRadius: 8,
     gap: 12,
   },
-  modalButton: {
+  warningText: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#E0E0E0',
-  },
-  cancelButtonText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  saveButton: {
-    backgroundColor: '#838A2D',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ff4444',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  signOutIcon: {
-    marginRight: 8,
-  },
-  signOutText: {
-    color: '#ff4444',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 14,
+    color: '#E53935',
+    lineHeight: 20,
   },
 });
-

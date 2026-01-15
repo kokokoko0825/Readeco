@@ -23,7 +23,7 @@ import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { showAlert } from '@/utils/alert';
-import { signIn, signInWithGoogle, signUp } from '@/utils/firebase-auth';
+import { signIn, signInWithGoogle, signInWithGooglePopup, signUp } from '@/utils/firebase-auth';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 
@@ -39,6 +39,7 @@ export default function AuthScreen() {
   const [displayName, setDisplayName] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Google認証の設定
   // 注意: Firebase ConsoleでOAuth 2.0クライアントIDを設定する必要があります
@@ -88,14 +89,16 @@ export default function AuthScreen() {
   }, []);
 
   // Google認証が有効かどうか（必要なクライアントIDが設定されているか）
+  // Web環境では常に有効（Firebase Popupを使用するため）
   const isGoogleAuthEnabled = useMemo(() => {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS === 'web') {
+      return true; // Web環境では常に有効
+    } else if (Platform.OS === 'ios') {
       return !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
     } else if (Platform.OS === 'android') {
       return !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
-    } else {
-      return !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
     }
+    return false;
   }, []);
 
   // Google認証の設定
@@ -168,6 +171,23 @@ export default function AuthScreen() {
   };
 
   const handleGoogleSignInPress = async () => {
+    // Web環境の場合は直接Firebase Popupを使用
+    if (Platform.OS === 'web') {
+      try {
+        setGoogleLoading(true);
+        await signInWithGooglePopup();
+        // 認証成功後、自動的にメイン画面に遷移
+        router.replace('/(tabs)');
+      } catch (error) {
+        console.error('Google sign in error:', error);
+        showAlert('エラー', error instanceof Error ? error.message : 'Google認証に失敗しました');
+      } finally {
+        setGoogleLoading(false);
+      }
+      return;
+    }
+
+    // モバイル環境の場合は expo-auth-session を使用
     // クライアントIDが設定されていない場合
     if (!isGoogleAuthEnabled) {
       showAlert(
@@ -312,19 +332,31 @@ export default function AuthScreen() {
 
             <View style={styles.inputContainer}>
               <ThemedText style={styles.label}>パスワード</ThemedText>
-              <TextInput
-                style={[
-                  styles.input,
-                  { color: Colors[colorScheme ?? 'light'].text, borderColor: '#E0E0E0' },
-                ]}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="パスワードを入力（6文字以上）"
-                placeholderTextColor="#999"
-                secureTextEntry
-                autoCapitalize="none"
-                autoComplete="password"
-              />
+              <View style={styles.passwordContainer}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.passwordInput,
+                    { color: Colors[colorScheme ?? 'light'].text, borderColor: '#E0E0E0' },
+                  ]}
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="パスワードを入力（6文字以上）"
+                  placeholderTextColor="#999"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoComplete="password"
+                />
+                <Pressable
+                  style={styles.passwordToggleButton}
+                  onPress={() => setShowPassword(!showPassword)}>
+                  <Icon
+                    name={showPassword ? 'visibility' : 'visibility-off'}
+                    size={20}
+                    color="#666"
+                  />
+                </Pressable>
+              </View>
             </View>
 
             <Pressable
@@ -347,6 +379,7 @@ export default function AuthScreen() {
                 setEmail('');
                 setPassword('');
                 setDisplayName('');
+                setShowPassword(false);
               }}>
               <ThemedText style={styles.switchButtonText}>
                 {isSignUp
@@ -431,6 +464,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
+  },
+  passwordContainer: {
+    position: 'relative',
+  },
+  passwordInput: {
+    paddingRight: 48,
+  },
+  passwordToggleButton: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+    padding: 4,
   },
   submitButton: {
     backgroundColor: '#838A2D',

@@ -46,7 +46,8 @@ export default function BarcodeScannerScreen() {
   const [showingAlert, setShowingAlert] = useState(false); // アラート表示中かどうか
   const [isRequesting, setIsRequesting] = useState(false); // リクエスト送信中かどうか
   const [isSaving, setIsSaving] = useState(false); // 保存中かどうか
-  const SCAN_COOLDOWN = 5000; // 5秒間のクールダウン（リクエスト数を減らすため延長）
+  const [addedBooksCount, setAddedBooksCount] = useState(0); // 登録した本の数
+  const SCAN_COOLDOWN = 2000; // 2秒間のクールダウン（連続登録のため短縮）
   
   // 即座にチェックできるようにuseRefを使用
   const lastScannedISBNRef = useRef<string>('');
@@ -200,7 +201,22 @@ export default function BarcodeScannerScreen() {
   };
 
   const handleClose = () => {
-    router.back();
+    if (addedBooksCount > 0) {
+      showAlert(
+        '登録完了',
+        `${addedBooksCount}冊の本を登録しました。\n本棚に戻ります。`,
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              router.back();
+            },
+          },
+        ]
+      );
+    } else {
+      router.back();
+    }
   };
 
   // Web用のバーコードスキャンハンドラー
@@ -267,7 +283,14 @@ export default function BarcodeScannerScreen() {
         <Pressable style={styles.closeIconButton} onPress={handleClose}>
           <Icon name="close" size={28} color="#fff" />
         </Pressable>
-        <ThemedText style={styles.headerTitle}>バーコードを読み取る</ThemedText>
+        <View style={styles.headerCenter}>
+          <ThemedText style={styles.headerTitle}>バーコードを読み取る</ThemedText>
+          {addedBooksCount > 0 && (
+            <ThemedText style={styles.headerSubtitle}>
+              {addedBooksCount}冊登録済み
+            </ThemedText>
+          )}
+        </View>
         <View style={styles.placeholder} />
       </View>
 
@@ -304,6 +327,10 @@ export default function BarcodeScannerScreen() {
             }}
             style={StyleSheet.absoluteFillObject}
             facing="back"
+            enableTorch={false}
+            autofocus="on"
+            zoom={0}
+            mode="picture"
           />
         )}
         {loading && (
@@ -339,6 +366,9 @@ export default function BarcodeScannerScreen() {
         <View style={styles.instructions}>
           <ThemedText style={styles.instructionText}>
             バーコードをカメラの中央に合わせてください
+          </ThemedText>
+          <ThemedText style={styles.instructionSubText}>
+            連続して複数の本を登録できます
           </ThemedText>
         </View>
       )}
@@ -430,7 +460,7 @@ export default function BarcodeScannerScreen() {
                       lastScannedISBNRef.current = ''; // useRefもリセット
                       isProcessingRef.current = false; // 処理中フラグをリセット
                     }}>
-                    <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
+                    <ThemedText style={styles.cancelButtonText}>スキップ</ThemedText>
                   </Pressable>
                   <Pressable
                     style={[
@@ -469,19 +499,16 @@ export default function BarcodeScannerScreen() {
                           lastScannedISBNRef.current = '';
                           isProcessingRef.current = false;
 
-                          // Web版ではrouter.back()が正しく動作しない可能性があるため、明示的に本棚ページに遷移
-                          if (Platform.OS === 'web') {
-                            router.replace('/(tabs)');
-                          } else {
-                            router.back();
-                          }
-
-                          showAlert('既に登録されています', 'この本は既に本棚に追加されています。');
+                          // 連続登録のため、画面遷移せずにスキャン画面に留まる
+                          showAlert('既に登録されています', 'この本は既に本棚に追加されています。\n続けて次の本をスキャンできます。');
                           return;
                         }
 
                         // Firebaseに保存
                         await addBookToFirebase(foundBook, userId, foundBook.description);
+
+                        // 登録した本の数をインクリメント
+                        setAddedBooksCount((prev) => prev + 1);
 
                         // 状態をリセット
                         setShowBookModal(false);
@@ -492,14 +519,14 @@ export default function BarcodeScannerScreen() {
                         lastScannedISBNRef.current = '';
                         isProcessingRef.current = false;
 
-                        // Web版ではrouter.back()が正しく動作しない可能性があるため、明示的に本棚ページに遷移
-                        if (Platform.OS === 'web') {
-                          router.replace('/(tabs)');
-                        } else {
-                          router.back();
-                        }
-
-                        showAlert('追加完了', '本棚に追加しました。');
+                        // 連続登録のため、画面遷移せずにスキャン画面に留まる
+                        const bookTitle = foundBook.title.length > 30
+                          ? foundBook.title.substring(0, 30) + '...'
+                          : foundBook.title;
+                        showAlert(
+                          '追加完了',
+                          `「${bookTitle}」を本棚に追加しました。\n\n続けて次の本をスキャンできます。`
+                        );
                       } catch (error) {
                         console.error('Error adding book to Firebase:', error);
                         showAlert(
@@ -555,10 +582,20 @@ const styles = StyleSheet.create({
   closeIconButton: {
     padding: 8,
   },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#fff',
+    opacity: 0.8,
+    marginTop: 2,
   },
   placeholder: {
     width: 44,
@@ -646,6 +683,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     fontSize: 16,
+  },
+  instructionSubText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontSize: 12,
+    marginTop: 4,
+    opacity: 0.7,
   },
   rescanContainer: {
     padding: 20,

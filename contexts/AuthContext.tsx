@@ -2,13 +2,12 @@
  * 認証状態を管理するコンテキスト
  */
 
-import { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
-import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth } from '@/utils/firebase';
-import { setUserSettings, getUserSettings } from '@/utils/firebase-users';
 import { subscribeUserBooks, type BookData } from '@/utils/firebase-books';
+import { getUserSettings, setUserSettings } from '@/utils/firebase-users';
 import { searchBooksByAuthor, type Book } from '@/utils/rakuten-api';
-import { getUserId } from '@/utils/firebase-auth';
+import { onAuthStateChanged, type User } from 'firebase/auth';
+import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 
 interface PreloadedNewBooksData {
   availableBooks: BookWithFormatted[];
