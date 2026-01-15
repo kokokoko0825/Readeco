@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -75,8 +74,12 @@ export default function SettingsScreen() {
   const [deleteConfirmPassword, setDeleteConfirmPassword] = useState('');
 
   const isDark = colorScheme === 'dark';
-  const cardBg = isDark ? '#1E1E1E' : '#FCFAF2';
-  const borderColor = '#6A4028';
+  const cardBg = isDark ? '#231E19' : '#FCFAF2';
+  const borderColor = isDark ? '#5A4030' : '#6A4028';
+  const inputBg = isDark ? '#2D2520' : '#F5F5F5';
+  const borderDefault = isDark ? '#3D352D' : '#E0E0E0';
+  const buttonSecondaryBg = isDark ? '#3D352D' : '#E5E5E5';
+  const secondaryTextColor = isDark ? '#B8A998' : '#666';
 
   useEffect(() => {
     if (user) {
@@ -379,7 +382,7 @@ export default function SettingsScreen() {
           <Icon
             name="chevron-right"
             size={20}
-            color={isDark ? '#666' : '#999'}
+            color={secondaryTextColor}
           />
         )}
       </View>
@@ -427,7 +430,7 @@ export default function SettingsScreen() {
             <Icon
               name="content-copy"
               size={14}
-              color={isDark ? '#888' : '#666'}
+              color={secondaryTextColor}
             />
           </Pressable>
         </View>
@@ -479,7 +482,7 @@ export default function SettingsScreen() {
                 <Icon
                   name="people-outline"
                   size={40}
-                  color={isDark ? '#555' : '#ccc'}
+                  color={isDark ? '#5A4030' : '#ccc'}
                 />
                 <ThemedText style={styles.emptyText}>
                   フレンドがいません
@@ -565,9 +568,7 @@ export default function SettingsScreen() {
         transparent
         animationType="fade"
         onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <Pressable style={styles.modalOverlay} onPress={closeModal}>
             <Pressable
               style={[styles.modalContent, { backgroundColor: cardBg }]}
@@ -582,28 +583,31 @@ export default function SettingsScreen() {
                   />
                 </Pressable>
               </View>
-              <View style={styles.modalBody}>
+              <ScrollView
+                style={styles.modalBodyScroll}
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled">
                 <ThemedText style={styles.inputLabel}>新しい表示名</ThemedText>
                 <TextInput
                   style={[
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={displayName}
                   onChangeText={setDisplayName}
                   placeholder="表示名を入力"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                 />
-              </View>
+              </ScrollView>
               <View style={styles.modalFooter}>
                 <Pressable
-                  style={[styles.modalButton, styles.cancelButton]}
+                  style={[styles.modalButton, styles.cancelButton, { backgroundColor: buttonSecondaryBg }]}
                   onPress={closeModal}>
-                  <ThemedText style={styles.cancelButtonText}>
+                  <ThemedText style={[styles.cancelButtonText, { color: isDark ? '#F5F0E6' : '#333' }]}>
                     キャンセル
                   </ThemedText>
                 </Pressable>
@@ -618,7 +622,7 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* メールアドレス変更モーダル */}
@@ -627,9 +631,7 @@ export default function SettingsScreen() {
         transparent
         animationType="fade"
         onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <Pressable style={styles.modalOverlay} onPress={closeModal}>
             <Pressable
               style={[styles.modalContent, { backgroundColor: cardBg }]}
@@ -646,7 +648,10 @@ export default function SettingsScreen() {
                   />
                 </Pressable>
               </View>
-              <View style={styles.modalBody}>
+              <ScrollView
+                style={styles.modalBodyScroll}
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled">
                 <ThemedText style={styles.inputLabel}>
                   新しいメールアドレス
                 </ThemedText>
@@ -655,14 +660,14 @@ export default function SettingsScreen() {
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={newEmail}
                   onChangeText={setNewEmail}
                   placeholder="新しいメールアドレス"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
@@ -674,22 +679,22 @@ export default function SettingsScreen() {
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
                   placeholder="パスワードを入力"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   secureTextEntry
                 />
-              </View>
+              </ScrollView>
               <View style={styles.modalFooter}>
                 <Pressable
-                  style={[styles.modalButton, styles.cancelButton]}
+                  style={[styles.modalButton, styles.cancelButton, { backgroundColor: buttonSecondaryBg }]}
                   onPress={closeModal}>
-                  <ThemedText style={styles.cancelButtonText}>
+                  <ThemedText style={[styles.cancelButtonText, { color: isDark ? '#F5F0E6' : '#333' }]}>
                     キャンセル
                   </ThemedText>
                 </Pressable>
@@ -704,7 +709,7 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* パスワード変更モーダル */}
@@ -713,9 +718,7 @@ export default function SettingsScreen() {
         transparent
         animationType="fade"
         onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <Pressable style={styles.modalOverlay} onPress={closeModal}>
             <Pressable
               style={[styles.modalContent, { backgroundColor: cardBg }]}
@@ -732,7 +735,10 @@ export default function SettingsScreen() {
                   />
                 </Pressable>
               </View>
-              <View style={styles.modalBody}>
+              <ScrollView
+                style={styles.modalBodyScroll}
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled">
                 <ThemedText style={styles.inputLabel}>
                   現在のパスワード
                 </ThemedText>
@@ -741,14 +747,14 @@ export default function SettingsScreen() {
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={currentPassword}
                   onChangeText={setCurrentPassword}
                   placeholder="現在のパスワード"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   secureTextEntry
                 />
                 <ThemedText style={[styles.inputLabel, { marginTop: 16 }]}>
@@ -759,14 +765,14 @@ export default function SettingsScreen() {
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={newPassword}
                   onChangeText={setNewPassword}
                   placeholder="新しいパスワード（6文字以上）"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   secureTextEntry
                 />
                 <ThemedText style={[styles.inputLabel, { marginTop: 16 }]}>
@@ -777,22 +783,22 @@ export default function SettingsScreen() {
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   placeholder="パスワードを再入力"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   secureTextEntry
                 />
-              </View>
+              </ScrollView>
               <View style={styles.modalFooter}>
                 <Pressable
-                  style={[styles.modalButton, styles.cancelButton]}
+                  style={[styles.modalButton, styles.cancelButton, { backgroundColor: buttonSecondaryBg }]}
                   onPress={closeModal}>
-                  <ThemedText style={styles.cancelButtonText}>
+                  <ThemedText style={[styles.cancelButtonText, { color: isDark ? '#F5F0E6' : '#333' }]}>
                     キャンセル
                   </ThemedText>
                 </Pressable>
@@ -807,7 +813,7 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* アカウント削除モーダル */}
@@ -816,9 +822,7 @@ export default function SettingsScreen() {
         transparent
         animationType="fade"
         onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <Pressable style={styles.modalOverlay} onPress={closeModal}>
             <Pressable
               style={[styles.modalContent, { backgroundColor: cardBg }]}
@@ -835,7 +839,10 @@ export default function SettingsScreen() {
                   />
                 </Pressable>
               </View>
-              <View style={styles.modalBody}>
+              <ScrollView
+                style={styles.modalBodyScroll}
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled">
                 <View style={styles.warningBox}>
                   <Icon name="warning" size={24} color="#E53935" />
                   <ThemedText style={styles.warningText}>
@@ -850,22 +857,22 @@ export default function SettingsScreen() {
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={deleteConfirmPassword}
                   onChangeText={setDeleteConfirmPassword}
                   placeholder="パスワードを入力"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   secureTextEntry
                 />
-              </View>
+              </ScrollView>
               <View style={styles.modalFooter}>
                 <Pressable
-                  style={[styles.modalButton, styles.cancelButton]}
+                  style={[styles.modalButton, styles.cancelButton, { backgroundColor: buttonSecondaryBg }]}
                   onPress={closeModal}>
-                  <ThemedText style={styles.cancelButtonText}>
+                  <ThemedText style={[styles.cancelButtonText, { color: isDark ? '#F5F0E6' : '#333' }]}>
                     キャンセル
                   </ThemedText>
                 </Pressable>
@@ -880,7 +887,7 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
 
       {/* フレンド追加モーダル */}
@@ -889,9 +896,7 @@ export default function SettingsScreen() {
         transparent
         animationType="fade"
         onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.modalOverlay}>
           <Pressable style={styles.modalOverlay} onPress={closeModal}>
             <Pressable
               style={[styles.modalContent, { backgroundColor: cardBg }]}
@@ -908,32 +913,35 @@ export default function SettingsScreen() {
                   />
                 </Pressable>
               </View>
-              <View style={styles.modalBody}>
+              <ScrollView
+                style={styles.modalBodyScroll}
+                contentContainerStyle={styles.modalBody}
+                keyboardShouldPersistTaps="handled">
                 <ThemedText style={styles.inputLabel}>ユーザーID</ThemedText>
                 <TextInput
                   style={[
                     styles.input,
                     {
                       color: Colors[colorScheme ?? 'light'].text,
-                      backgroundColor: isDark ? '#2A2A2A' : '#F5F5F5',
+                      backgroundColor: inputBg,
                       borderColor: borderColor,
                     },
                   ]}
                   value={friendUserId}
                   onChangeText={setFriendUserId}
                   placeholder="フレンドのユーザーIDを入力"
-                  placeholderTextColor="#999"
+                  placeholderTextColor={isDark ? '#B8A998' : '#999'}
                   autoCapitalize="none"
                 />
                 <ThemedText style={styles.inputHint}>
                   フレンドにあなたのユーザーIDを教えてもらい、入力してください
                 </ThemedText>
-              </View>
+              </ScrollView>
               <View style={styles.modalFooter}>
                 <Pressable
-                  style={[styles.modalButton, styles.cancelButton]}
+                  style={[styles.modalButton, styles.cancelButton, { backgroundColor: buttonSecondaryBg }]}
                   onPress={closeModal}>
-                  <ThemedText style={styles.cancelButtonText}>
+                  <ThemedText style={[styles.cancelButtonText, { color: isDark ? '#F5F0E6' : '#333' }]}>
                     キャンセル
                   </ThemedText>
                 </Pressable>
@@ -948,7 +956,7 @@ export default function SettingsScreen() {
               </View>
             </Pressable>
           </Pressable>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </ThemedView>
   );
@@ -1176,6 +1184,9 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     marginBottom: 24,
+  },
+  modalBodyScroll: {
+    maxHeight: 300,
   },
   modalFooter: {
     flexDirection: 'row',

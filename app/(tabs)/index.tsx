@@ -191,7 +191,7 @@ export default function HomeScreen() {
             style={[
               styles.bookThumbnailPlaceholder,
               {
-                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
               },
             ]}>
             <View style={styles.bookCardContent}>
@@ -200,7 +200,7 @@ export default function HomeScreen() {
                   style={[
                     styles.bookCardAuthor,
                     {
-                      color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                      color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
                     },
                   ]}
                   numberOfLines={1}
@@ -296,7 +296,7 @@ export default function HomeScreen() {
             style={[
               styles.seriesBookThumbnailPlaceholder,
               {
-                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
               },
             ]}>
             <View style={styles.bookCardContent}>
@@ -305,7 +305,7 @@ export default function HomeScreen() {
                   style={[
                     styles.bookCardAuthor,
                     {
-                      color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                      color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
                     },
                   ]}
                   numberOfLines={1}
@@ -337,7 +337,7 @@ export default function HomeScreen() {
           styles.sortContainer,
           {
             backgroundColor: Colors[colorScheme ?? 'light'].background,
-            borderBottomColor: colorScheme === 'dark' ? '#2A2A2A' : '#E0E0E0',
+            borderBottomColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
           },
         ]}>
         <View style={styles.sortButtons}>
@@ -350,7 +350,7 @@ export default function HomeScreen() {
                   sortOrder === 'date-desc'
                     ? '#838A2D'
                     : colorScheme === 'dark'
-                    ? '#2A2A2A'
+                    ? '#2D2520'
                     : '#F5F5F5',
               },
             ]}
@@ -381,7 +381,7 @@ export default function HomeScreen() {
                   sortOrder === 'date-asc'
                     ? '#838A2D'
                     : colorScheme === 'dark'
-                    ? '#2A2A2A'
+                    ? '#2D2520'
                     : '#F5F5F5',
               },
             ]}
@@ -412,7 +412,7 @@ export default function HomeScreen() {
                   sortOrder === 'title'
                     ? '#838A2D'
                     : colorScheme === 'dark'
-                    ? '#2A2A2A'
+                    ? '#2D2520'
                     : '#F5F5F5',
               },
             ]}

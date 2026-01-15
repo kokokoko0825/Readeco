@@ -9,10 +9,11 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 export default function TabLayout() {
   const colorScheme = useColorScheme();
 
+  const isDark = colorScheme === 'dark';
   const headerStyle = {
     backgroundColor: Colors[colorScheme ?? 'light'].background,
     borderBottomWidth: 1,
-    borderBottomColor: '#838A2D',
+    borderBottomColor: isDark ? '#9DA348' : '#838A2D',
   };
 
   const headerTitleStyle = {
@@ -24,8 +25,8 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#FCFAF2',
-        tabBarInactiveTintColor: '#FCFAF2',
+        tabBarActiveTintColor: isDark ? '#F5F0E6' : '#FCFAF2',
+        tabBarInactiveTintColor: isDark ? '#A89B8C' : '#C4A77D',
         headerShown: true,
         headerStyle,
         headerTintColor: Colors[colorScheme ?? 'light'].text,
@@ -47,7 +48,7 @@ export default function TabLayout() {
           marginTop: 4,
         },
         tabBarStyle: {
-          backgroundColor: '#6A4028',
+          backgroundColor: Colors[colorScheme ?? 'light'].tabBarBackground,
           paddingVertical: 16,
           paddingHorizontal: 10,
           height: 133,

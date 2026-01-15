@@ -178,7 +178,7 @@ export default function FriendsScreen() {
             style={[
               styles.bookThumbnailPlaceholder,
               {
-                backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
               },
             ]}>
             <View style={styles.bookCardContent}>
@@ -187,7 +187,7 @@ export default function FriendsScreen() {
                   style={[
                     styles.bookCardAuthor,
                     {
-                      color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                      color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
                     },
                   ]}
                   numberOfLines={1}
@@ -296,7 +296,7 @@ export default function FriendsScreen() {
             {
               backgroundColor: pressed
                 ? colorScheme === 'dark'
-                  ? '#2A2A2A'
+                  ? '#2D2520'
                   : 'rgba(0, 0, 0, 0.05)'
                 : 'transparent',
             },
@@ -384,7 +384,7 @@ export default function FriendsScreen() {
                   styles.friendOption,
                   !selectedFriendId && {
                     backgroundColor:
-                      colorScheme === 'dark' ? '#2A2A2A' : '#F0F0F0',
+                      colorScheme === 'dark' ? '#2D2520' : '#F0F0F0',
                   },
                 ]}
                 onPress={() => {
@@ -404,7 +404,7 @@ export default function FriendsScreen() {
                     styles.friendOption,
                     selectedFriendId === friend.friendId && {
                       backgroundColor:
-                        colorScheme === 'dark' ? '#2A2A2A' : '#F0F0F0',
+                        colorScheme === 'dark' ? '#2D2520' : '#F0F0F0',
                     },
                   ]}
                   onPress={() => {
@@ -495,7 +495,7 @@ export default function FriendsScreen() {
                         style={[
                           styles.seriesBookThumbnailPlaceholder,
                           {
-                            backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                            backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
                           },
                         ]}>
                         <View style={styles.bookCardContent}>
@@ -504,7 +504,7 @@ export default function FriendsScreen() {
                               style={[
                                 styles.bookCardAuthor,
                                 {
-                                  color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                                  color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
                                 },
                               ]}
                               numberOfLines={1}

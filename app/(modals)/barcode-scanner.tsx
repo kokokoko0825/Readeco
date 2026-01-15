@@ -450,7 +450,7 @@ export default function BarcodeScannerScreen() {
                 {/* ボタン */}
                 <View style={styles.modalButtons}>
                   <Pressable
-                    style={[styles.modalButton, styles.cancelButton]}
+                    style={[styles.modalButton, styles.cancelButton, { backgroundColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0' }]}
                     onPress={() => {
                       setShowBookModal(false);
                       setScanned(false);
@@ -460,7 +460,7 @@ export default function BarcodeScannerScreen() {
                       lastScannedISBNRef.current = ''; // useRefもリセット
                       isProcessingRef.current = false; // 処理中フラグをリセット
                     }}>
-                    <ThemedText style={styles.cancelButtonText}>スキップ</ThemedText>
+                    <ThemedText style={[styles.cancelButtonText, { color: colorScheme === 'dark' ? '#F5F0E6' : '#333' }]}>スキップ</ThemedText>
                   </Pressable>
                   <Pressable
                     style={[

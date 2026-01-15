@@ -176,7 +176,7 @@ export default function SearchResultsScreen() {
                 styles.bookImagePlaceholder,
                 {
                   backgroundColor:
-                    colorScheme === 'dark' ? '#2A2A2A' : '#E0E0E0',
+                    colorScheme === 'dark' ? '#2D2520' : '#E0E0E0',
                 },
               ]}>
               <Icon
@@ -305,7 +305,7 @@ export default function SearchResultsScreen() {
               styles.separator,
               {
                 backgroundColor:
-                  colorScheme === 'dark' ? '#2A2A2A' : '#F5F5F5',
+                  colorScheme === 'dark' ? '#2D2520' : '#F5F5F5',
               },
             ]}
           />
@@ -422,12 +422,12 @@ export default function SearchResultsScreen() {
             {/* モーダルフッター */}
             <View style={styles.modalFooter}>
               <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0' }]}
                 onPress={() => {
                   setShowBookModal(false);
                   setSelectedBook(null);
                 }}>
-                <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
+                <ThemedText style={[styles.cancelButtonText, { color: colorScheme === 'dark' ? '#F5F0E6' : '#333' }]}>キャンセル</ThemedText>
               </Pressable>
               <Pressable
                 style={[

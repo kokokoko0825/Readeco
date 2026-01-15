@@ -162,7 +162,7 @@ export default function BookCardScreen() {
               style={[
                 styles.coverPlaceholder,
                 {
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
                 },
               ]}>
               <View style={styles.coverCardContent}>
@@ -171,7 +171,7 @@ export default function BookCardScreen() {
                     style={[
                       styles.coverCardAuthor,
                       {
-                        color: colorScheme === 'dark' ? '#9BA1A6' : '#6A4028',
+                        color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
                       },
                     ]}
                     numberOfLines={2}
@@ -190,7 +190,7 @@ export default function BookCardScreen() {
                     style={[
                       styles.coverCardPublisher,
                       {
-                        color: colorScheme === 'dark' ? '#9BA1A6' : '#687076',
+                        color: colorScheme === 'dark' ? '#B8A998' : '#687076',
                       },
                     ]}
                     numberOfLines={1}

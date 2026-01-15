@@ -122,7 +122,7 @@ export default function ManualBookEntryScreen() {
             styles.header,
             {
               borderBottomColor:
-                colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
             },
           ]}>
           <Pressable
@@ -180,8 +180,8 @@ export default function ManualBookEntryScreen() {
                 styles.input,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={title}
@@ -202,8 +202,8 @@ export default function ManualBookEntryScreen() {
                 styles.input,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={imageUrl}
@@ -226,8 +226,8 @@ export default function ManualBookEntryScreen() {
                 styles.input,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={author}
@@ -248,8 +248,8 @@ export default function ManualBookEntryScreen() {
                 styles.input,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={publisher}
@@ -270,8 +270,8 @@ export default function ManualBookEntryScreen() {
                 styles.input,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={price}
@@ -293,8 +293,8 @@ export default function ManualBookEntryScreen() {
                 styles.input,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={publishDate}
@@ -316,8 +316,8 @@ export default function ManualBookEntryScreen() {
                 styles.textArea,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={description}
@@ -339,7 +339,7 @@ export default function ManualBookEntryScreen() {
           style={[
             styles.footer,
             {
-              borderTopColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+              borderTopColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
               backgroundColor: Colors[colorScheme ?? 'light'].background,
             },
           ]}>

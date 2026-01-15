@@ -19,13 +19,13 @@ export const Colors = {
     tabBarBackground: '#6A4028',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
-    tabBarBackground: '#6A4028',
+    text: '#F5F0E6',
+    background: '#1A1612',
+    tint: '#D4C4A8',
+    icon: '#A89B8C',
+    tabIconDefault: '#A89B8C',
+    tabIconSelected: '#F5F0E6',
+    tabBarBackground: '#4A3020',
   },
 };
 

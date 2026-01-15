@@ -428,7 +428,7 @@ export default function NewScreen() {
             />
           ) : (
             <View style={[styles.bookImagePlaceholder, {
-              backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#E0E0E0',
+              backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#E0E0E0',
             }]} />
           )}
           <View style={styles.bookInfo}>
@@ -492,12 +492,14 @@ export default function NewScreen() {
           style={[
             styles.tabButton,
             activeTab === 'available' && styles.tabButtonActive,
+            activeTab !== 'available' && { backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#E0E0E0' },
           ]}
           onPress={() => setActiveTab('available')}>
           <ThemedText
             style={[
               styles.tabButtonText,
               activeTab === 'available' && styles.tabButtonTextActive,
+              activeTab !== 'available' && { color: colorScheme === 'dark' ? '#A89B8C' : '#666' },
             ]}>
             発売中
           </ThemedText>
@@ -506,12 +508,14 @@ export default function NewScreen() {
           style={[
             styles.tabButton,
             activeTab === 'preorder' && styles.tabButtonActive,
+            activeTab !== 'preorder' && { backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#E0E0E0' },
           ]}
           onPress={() => setActiveTab('preorder')}>
           <ThemedText
             style={[
               styles.tabButtonText,
               activeTab === 'preorder' && styles.tabButtonTextActive,
+              activeTab !== 'preorder' && { color: colorScheme === 'dark' ? '#A89B8C' : '#666' },
             ]}>
             予約販売中
           </ThemedText>
@@ -578,7 +582,7 @@ export default function NewScreen() {
                         styles.coverPlaceholder,
                         {
                           backgroundColor:
-                            colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
+                            colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
                         },
                       ]}>
                       <Icon

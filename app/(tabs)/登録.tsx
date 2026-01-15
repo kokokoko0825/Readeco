@@ -241,8 +241,8 @@ export default function RegisterScreen() {
                 styles.titleInput,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={titleInput}
@@ -273,7 +273,7 @@ export default function RegisterScreen() {
                 styles.suggestionsContainer,
                 {
                   backgroundColor: Colors[colorScheme ?? 'light'].background,
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}>
               {isLoadingSuggestions ? (
@@ -416,12 +416,12 @@ export default function RegisterScreen() {
             {/* モーダルフッター */}
             <View style={styles.modalFooter}>
               <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
+                style={[styles.modalButton, styles.cancelButton, { backgroundColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0' }]}
                 onPress={() => {
                   setShowBookModal(false);
                   setFoundBook(null);
                 }}>
-                <ThemedText style={styles.cancelButtonText}>キャンセル</ThemedText>
+                <ThemedText style={[styles.cancelButtonText, { color: colorScheme === 'dark' ? '#F5F0E6' : '#333' }]}>キャンセル</ThemedText>
               </Pressable>
               <Pressable
                 style={[
@@ -471,8 +471,8 @@ export default function RegisterScreen() {
                 styles.fullModalInput,
                 {
                   color: Colors[colorScheme ?? 'light'].text,
-                  backgroundColor: colorScheme === 'dark' ? '#2A2A2A' : '#FFFFFF',
-                  borderColor: colorScheme === 'dark' ? '#404040' : '#E0E0E0',
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                  borderColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0',
                 },
               ]}
               value={isbnModalInput}
