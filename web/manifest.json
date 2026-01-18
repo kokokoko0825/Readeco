@@ -1,5 +1,5 @@
 {
-  "name": "Readeco",
+  "name": "Readeco - 本の管理アプリ",
   "short_name": "Readeco",
   "start_url": "/",
   "scope": "/",
@@ -7,27 +7,37 @@
   "orientation": "portrait",
   "background_color": "#FCFAF2",
   "theme_color": "#6A4028",
-  "description": "Readecoで本と友達の読書体験をつなぐ",
+  "description": "バーコードスキャンで簡単に蔵書管理。読んだ本の記録、読書メモ、本棚の整理がこれ1つで完結。",
+  "lang": "ja",
+  "dir": "ltr",
+  "categories": ["books", "lifestyle", "productivity", "social"],
   "icons": [
     {
       "src": "/assets/images/icon.png",
-      "sizes": "2048x2048",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/images/icon.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
-  "screenshots": [
+  "shortcuts": [
     {
-      "src": "/assets/images/icon.png",
-      "sizes": "540x720",
-      "type": "image/png",
-      "form_factor": "narrow"
-    },
-    {
-      "src": "/assets/images/icon.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide"
+      "name": "本をスキャン",
+      "short_name": "スキャン",
+      "description": "バーコードをスキャンして本を登録",
+      "url": "/scan",
+      "icons": [{ "src": "/assets/images/icon.png", "sizes": "192x192" }]
     }
   ]
 }

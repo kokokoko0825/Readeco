@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import type { Unsubscribe } from 'firebase/firestore';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
@@ -9,9 +9,10 @@ import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { extractBaseTitle, getBooksBySeriesKey, getGroupedBooksRepresentatives } from '@/utils/book-series';
+import { createCustomSeriesId, extractBaseTitle, getBooksBySeriesKey, getGroupedBooksRepresentatives, isCustomSeries } from '@/utils/book-series';
 import { getUserId } from '@/utils/firebase-auth';
-import { subscribeUserBooks, type BookData } from '@/utils/firebase-books';
+import { subscribeUserBooks, updateBook, type BookData } from '@/utils/firebase-books';
+import { showAlert } from '@/utils/alert';
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -23,6 +24,10 @@ export default function HomeScreen() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState<string | null>(null);
   const [showSeriesModal, setShowSeriesModal] = useState(false);
   const [sortOrder, setSortOrder] = useState<'date-desc' | 'date-asc' | 'title'>('date-desc');
+
+  // シリーズ化モード用のstate（長押しで選択 → 別の本をタップでシリーズ化）
+  const [isSeriesMode, setIsSeriesMode] = useState(false);
+  const [selectedBookForSeries, setSelectedBookForSeries] = useState<BookData | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -140,11 +145,116 @@ export default function HomeScreen() {
   // シリーズの基本タイトルを取得
   const seriesBaseTitle = useMemo(() => {
     if (!selectedSeriesKey || selectedSeriesBooks.length === 0) return '';
+    // カスタムシリーズの場合は最初の本のタイトルをそのまま使う
+    if (isCustomSeries(selectedSeriesKey)) {
+      return 'カスタムシリーズ';
+    }
     const firstBook = selectedSeriesBooks[0];
     return extractBaseTitle(firstBook.title);
   }, [selectedSeriesKey, selectedSeriesBooks]);
 
-  const handleBookPress = (item: BookData) => {
+  // シリーズをマージする関数（既存のシリーズ同士のマージにも対応）
+  const mergeSeries = useCallback(async (firstBook: BookData, secondBook: BookData) => {
+    try {
+      // 各本が属するシリーズの全ての本を取得
+      const firstSeriesKey = (firstBook as BookData & { _seriesKey?: string })._seriesKey;
+      const secondSeriesKey = (secondBook as BookData & { _seriesKey?: string })._seriesKey;
+
+      // シリーズに含まれる全ての本を収集
+      const booksToUpdate: BookData[] = [];
+
+      if (firstSeriesKey) {
+        // firstBookがシリーズの代表の場合、そのシリーズの全ての本を取得
+        const seriesBooks = getBooksBySeriesKey(books, firstSeriesKey);
+        booksToUpdate.push(...seriesBooks);
+      } else {
+        booksToUpdate.push(firstBook);
+      }
+
+      if (secondSeriesKey) {
+        // secondBookがシリーズの代表の場合、そのシリーズの全ての本を取得
+        const seriesBooks = getBooksBySeriesKey(books, secondSeriesKey);
+        // 重複を避ける
+        for (const book of seriesBooks) {
+          if (!booksToUpdate.find(b => b.id === book.id)) {
+            booksToUpdate.push(book);
+          }
+        }
+      } else if (!booksToUpdate.find(b => b.id === secondBook.id)) {
+        booksToUpdate.push(secondBook);
+      }
+
+      // 新しいシリーズIDを決定（既存のカスタムシリーズIDがあれば再利用）
+      const existingCustomSeriesId = booksToUpdate.find(b => b.customSeriesId)?.customSeriesId;
+      const newSeriesId = existingCustomSeriesId || createCustomSeriesId();
+
+      // 全ての本に同じcustomSeriesIdを設定
+      const updates: Promise<void>[] = [];
+
+      for (const book of booksToUpdate) {
+        if (book.id && book.customSeriesId !== newSeriesId) {
+          updates.push(updateBook(book.id, { customSeriesId: newSeriesId }));
+        }
+      }
+
+      await Promise.all(updates);
+
+      const bookCount = booksToUpdate.length;
+      showAlert('シリーズ化完了', `${bookCount}冊の本をシリーズにまとめました`);
+    } catch (error) {
+      console.error('Error merging series:', error);
+      showAlert('エラー', 'シリーズ化に失敗しました');
+    }
+  }, [books]);
+
+  // カスタムシリーズから本を外す関数
+  const removeFromSeries = useCallback(async (book: BookData) => {
+    if (!book.id || !book.customSeriesId) return;
+
+    try {
+      // customSeriesIdを削除して解除（undefinedはdeleteField()に変換される）
+      await updateBook(book.id, { customSeriesId: undefined });
+      showAlert('解除完了', 'シリーズから外しました');
+
+      // シリーズに残る本が1冊以下になった場合、モーダルを閉じる
+      const remainingBooks = selectedSeriesBooks.filter(b => b.id !== book.id);
+      if (remainingBooks.length <= 1) {
+        setShowSeriesModal(false);
+        setSelectedSeriesKey(null);
+      }
+    } catch (error) {
+      console.error('Error removing from series:', error);
+      showAlert('エラー', 'シリーズからの解除に失敗しました');
+    }
+  }, [selectedSeriesBooks]);
+
+  // シリーズ化モードをキャンセル
+  const cancelSeriesMode = useCallback(() => {
+    setIsSeriesMode(false);
+    setSelectedBookForSeries(null);
+  }, []);
+
+  // 長押しでシリーズ化モードに入る
+  const handleLongPress = useCallback((item: BookData) => {
+    setIsSeriesMode(true);
+    setSelectedBookForSeries(item);
+  }, []);
+
+  const handleBookPress = useCallback((item: BookData) => {
+    // シリーズ化モード中の場合
+    if (isSeriesMode && selectedBookForSeries) {
+      // 同じ本をタップした場合はキャンセル
+      if (item.id === selectedBookForSeries.id) {
+        cancelSeriesMode();
+        return;
+      }
+
+      // 別の本をタップした場合はシリーズ化
+      mergeSeries(selectedBookForSeries, item);
+      cancelSeriesMode();
+      return;
+    }
+
     const seriesCount = (item as BookData & { _seriesCount?: number })._seriesCount;
     const seriesKey = (item as BookData & { _seriesKey?: string })._seriesKey;
     const hasSeries = seriesCount !== undefined && seriesCount > 1 && seriesKey;
@@ -160,19 +270,23 @@ export default function HomeScreen() {
         params: { id: item.id || '' },
       });
     }
-  };
+  }, [isSeriesMode, selectedBookForSeries, cancelSeriesMode, mergeSeries]);
 
-  const renderBookItem = ({ item }: { item: BookData }) => {
+  const renderBookItem = useCallback(({ item }: { item: BookData }) => {
     const seriesCount = (item as BookData & { _seriesCount?: number })._seriesCount;
     const hasSeries = seriesCount !== undefined && seriesCount > 1;
+    const isSelected = isSeriesMode && selectedBookForSeries?.id === item.id;
 
     return (
       <Pressable
         style={({ pressed }) => [
           styles.bookItem,
           pressed && styles.bookItemPressed,
+          isSelected && styles.selectedForSeries,
         ]}
-        onPress={() => handleBookPress(item)}>
+        onPress={() => handleBookPress(item)}
+        onLongPress={() => handleLongPress(item)}
+        delayLongPress={500}>
         {item.imageUrl ? (
           <View style={styles.thumbnailContainer}>
             <Image
@@ -224,7 +338,7 @@ export default function HomeScreen() {
         )}
       </Pressable>
     );
-  };
+  }, [colorScheme, isSeriesMode, selectedBookForSeries, handleBookPress, handleLongPress]);
 
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -273,64 +387,95 @@ export default function HomeScreen() {
 
   const renderSeriesBookItem = ({ item }: { item: BookData }) => {
     return (
-      <Pressable
-        style={({ pressed }) => [
-          styles.seriesBookItem,
-          pressed && styles.bookItemPressed,
-        ]}
-        onPress={() => {
-          setShowSeriesModal(false);
-          router.push({
-            pathname: '/book/[id]',
-            params: { id: item.id || '' },
-          });
-        }}>
-        {item.imageUrl ? (
-          <Image
-            source={{ uri: item.imageUrl }}
-            style={styles.seriesBookThumbnail}
-            resizeMode="cover"
-          />
-        ) : (
-          <View
-            style={[
-              styles.seriesBookThumbnailPlaceholder,
-              {
-                backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
-              },
-            ]}>
-            <View style={styles.bookCardContent}>
-              {item.author && (
+      <View style={styles.seriesBookItem}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.seriesBookItemPressable,
+            pressed && styles.bookItemPressed,
+          ]}
+          onPress={() => {
+            setShowSeriesModal(false);
+            router.push({
+              pathname: '/book/[id]',
+              params: { id: item.id || '' },
+            });
+          }}>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.seriesBookThumbnail}
+              resizeMode="cover"
+            />
+          ) : (
+            <View
+              style={[
+                styles.seriesBookThumbnailPlaceholder,
+                {
+                  backgroundColor: colorScheme === 'dark' ? '#2D2520' : '#FFFFFF',
+                },
+              ]}>
+              <View style={styles.bookCardContent}>
+                {item.author && (
+                  <ThemedText
+                    style={[
+                      styles.bookCardAuthor,
+                      {
+                        color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
+                      },
+                    ]}
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
+                    {item.author}
+                  </ThemedText>
+                )}
                 <ThemedText
-                  style={[
-                    styles.bookCardAuthor,
-                    {
-                      color: colorScheme === 'dark' ? '#B8A998' : '#6A4028',
-                    },
-                  ]}
-                  numberOfLines={1}
+                  style={styles.bookCardTitle}
+                  numberOfLines={4}
                   ellipsizeMode="tail">
-                  {item.author}
+                  {item.title}
                 </ThemedText>
-              )}
-              <ThemedText
-                style={styles.bookCardTitle}
-                numberOfLines={4}
-                ellipsizeMode="tail">
-                {item.title}
-              </ThemedText>
+              </View>
             </View>
-          </View>
-        )}
+          )}
+        </Pressable>
         <ThemedText style={styles.seriesBookTitle} numberOfLines={2}>
           {item.title}
         </ThemedText>
-      </Pressable>
+        {/* customSeriesIdを持つ本には解除ボタンを表示 */}
+        {item.customSeriesId && (
+          <Pressable
+            style={styles.removeFromSeriesButton}
+            onPress={() => removeFromSeries(item)}>
+            <Icon
+              name="close"
+              size={16}
+              color="#fff"
+            />
+          </Pressable>
+        )}
+      </View>
     );
   };
 
   return (
     <ThemedView style={styles.container}>
+      {/* シリーズ化モードバナー */}
+      {isSeriesMode && selectedBookForSeries && (
+        <View style={styles.seriesModeBanner}>
+          <View style={styles.seriesModeBannerContent}>
+            <Icon name="link" size={20} color="#fff" />
+            <ThemedText style={styles.seriesModeBannerText}>
+              シリーズにまとめる本をタップ
+            </ThemedText>
+          </View>
+          <Pressable
+            style={styles.seriesModeCancelButton}
+            onPress={cancelSeriesMode}>
+            <ThemedText style={styles.seriesModeCancelText}>キャンセル</ThemedText>
+          </Pressable>
+        </View>
+      )}
+
       {/* 並び替えセレクター */}
       <View
         style={[
@@ -495,6 +640,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  seriesModeBanner: {
+    backgroundColor: '#838A2D',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  seriesModeBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  seriesModeBannerText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  seriesModeCancelButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 6,
+  },
+  seriesModeCancelText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '500',
+  },
   sortContainer: {
     paddingVertical: 12,
     paddingHorizontal: 16,
@@ -554,6 +728,12 @@ const styles = StyleSheet.create({
     margin: 4,
     aspectRatio: 2 / 3, // 縦横比を2:3に設定（本の表紙の一般的な比率）
     maxWidth: '31%', // 3列に配置するため、各アイテムの最大幅を約33%に設定
+  },
+  selectedForSeries: {
+    borderWidth: 3,
+    borderColor: '#838A2D',
+    borderRadius: 10,
+    transform: [{ scale: 1.05 }],
   },
   bookItemPressed: {
     opacity: 0.6,
@@ -722,6 +902,29 @@ const styles = StyleSheet.create({
     flex: 1,
     margin: 4,
     maxWidth: '31%',
+    position: 'relative',
+  },
+  seriesBookItemPressable: {
+    width: '100%',
+  },
+  removeFromSeriesButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#ff4444',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   seriesBookThumbnail: {
     width: '100%',

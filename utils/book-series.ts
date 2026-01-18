@@ -5,6 +5,13 @@
 import type { BookData } from './firebase-books';
 
 /**
+ * カスタムシリーズIDを生成
+ */
+export function createCustomSeriesId(): string {
+  return `custom_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+/**
  * タイトルから巻数や数字を取り除いて基本タイトルを抽出
  * 例: "ハリーポッター 1" -> "ハリーポッター"
  *     "進撃の巨人 第10巻" -> "進撃の巨人"
@@ -36,12 +43,24 @@ export function extractBaseTitle(title: string): string {
 }
 
 /**
- * 書籍のシリーズキーを生成（基本タイトル + 著者名）
+ * 書籍のシリーズキーを生成
+ * カスタムシリーズIDがある場合はそれを使用、なければ基本タイトル + 著者名
  */
 export function getSeriesKey(book: BookData): string {
+  // カスタムシリーズIDがある場合はそれを優先
+  if (book.customSeriesId) {
+    return `custom::${book.customSeriesId}`;
+  }
   const baseTitle = extractBaseTitle(book.title);
   const author = book.author || '著者不明';
   return `${baseTitle}::${author}`;
+}
+
+/**
+ * カスタムシリーズかどうかを判定
+ */
+export function isCustomSeries(seriesKey: string): boolean {
+  return seriesKey.startsWith('custom::');
 }
 
 /**
@@ -90,9 +109,10 @@ export function getGroupedBooksRepresentatives<T extends BookData>(books: T[]): 
   for (const [seriesKey, seriesBooks] of groups) {
     const representative = getRepresentativeBook(seriesBooks) as T;
     // シリーズ情報を保持するため、カスタムプロパティを追加
-    (representative as T & { _seriesCount?: number; _seriesKey?: string })._seriesCount =
+    (representative as T & { _seriesCount?: number; _seriesKey?: string; _isCustomSeries?: boolean })._seriesCount =
       seriesBooks.length;
     (representative as T & { _seriesKey?: string })._seriesKey = seriesKey;
+    (representative as T & { _isCustomSeries?: boolean })._isCustomSeries = isCustomSeries(seriesKey);
     representatives.push(representative);
   }
 

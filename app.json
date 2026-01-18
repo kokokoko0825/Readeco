@@ -64,9 +64,10 @@
         }
       ],
       [
-        "expo-camera",
+        "react-native-vision-camera",
         {
-          "cameraPermission": "カメラへのアクセスを許可して、バーコードをスキャンできるようにします。"
+          "cameraPermissionText": "カメラへのアクセスを許可して、バーコードをスキャンできるようにします。",
+          "enableCodeScanner": true
         }
       ]
     ],

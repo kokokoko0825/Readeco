@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { AuthGuard } from '@/components/AuthGuard';
@@ -97,6 +98,15 @@ export default function RootLayout() {
         ioniconsLink.href = 'https://fonts.googleapis.com/css2?family=Ionicons';
         document.head.appendChild(ioniconsLink);
       }
+
+      // Google Search Console認証メタタグ
+      const existingGoogleVerification = document.querySelector('meta[name="google-site-verification"]');
+      if (!existingGoogleVerification) {
+        const googleVerificationMeta = document.createElement('meta');
+        googleVerificationMeta.name = 'google-site-verification';
+        googleVerificationMeta.content = 'F4I9W3r6lX1lKXofOLr8jkNwEpLi_rxmzpV-ZBIG574';
+        document.head.appendChild(googleVerificationMeta);
+      }
     }
   }, []);
 
@@ -136,34 +146,39 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AuthGuard>
-          <Stack>
-            <Stack.Screen name="auth" options={{ headerShown: false }} />
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-            <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </AuthGuard>
-        {Platform.OS === 'web' && deferredInstallEvent && (
-          <View style={styles.installBanner}>
-            <Text style={styles.installText}>アプリをインストールできます</Text>
-            <Pressable style={styles.installButton} onPress={handleInstall}>
-              <Text style={styles.installButtonText}>インストール</Text>
-            </Pressable>
-          </View>
-        )}
-        {showCustomSplash && (
-          <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />
-        )}
-      </ThemeProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={styles.gestureRoot}>
+      <AuthProvider>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <AuthGuard>
+            <Stack>
+              <Stack.Screen name="auth" options={{ headerShown: false }} />
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+              <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
+            </Stack>
+            <StatusBar style="auto" />
+          </AuthGuard>
+          {Platform.OS === 'web' && deferredInstallEvent && (
+            <View style={styles.installBanner}>
+              <Text style={styles.installText}>アプリをインストールできます</Text>
+              <Pressable style={styles.installButton} onPress={handleInstall}>
+                <Text style={styles.installButtonText}>インストール</Text>
+              </Pressable>
+            </View>
+          )}
+          {showCustomSplash && (
+            <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />
+          )}
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  gestureRoot: {
+    flex: 1,
+  },
   installBanner: {
     position: 'fixed',
     bottom: 16,

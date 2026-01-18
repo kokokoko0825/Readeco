@@ -6,6 +6,7 @@ import {
     addDoc,
     collection,
     deleteDoc,
+    deleteField,
     doc,
     getDoc,
     getDocs,
@@ -27,6 +28,7 @@ export interface BookData extends Book {
   userId: string; // ユーザーID
   addedAt: Date; // 追加日時
   description?: string; // あらすじ
+  customSeriesId?: string; // カスタムシリーズID（ドラッグ&ドロップでグループ化）
 }
 
 // FirestoreのドキュメントをBookDataに変換
@@ -45,6 +47,7 @@ function docToBookData(docSnap: QueryDocumentSnapshot<DocumentData>): BookData {
     description: data.description,
     userId: data.userId,
     addedAt: data.addedAt?.toDate() || new Date(),
+    customSeriesId: data.customSeriesId,
   };
 }
 
@@ -211,11 +214,19 @@ export async function updateBook(
 ): Promise<void> {
   try {
     const docRef = doc(db, 'books', bookId);
-    const updateData: any = { ...updates };
+    const updateData: any = {};
 
-    // DateオブジェクトをTimestampに変換
-    if (updates.addedAt) {
-      updateData.addedAt = Timestamp.fromDate(updates.addedAt);
+    // 各フィールドを処理
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === null || value === undefined) {
+        // nullまたはundefinedの場合はフィールドを削除
+        updateData[key] = deleteField();
+      } else if (key === 'addedAt' && value instanceof Date) {
+        // DateオブジェクトをTimestampに変換
+        updateData[key] = Timestamp.fromDate(value);
+      } else {
+        updateData[key] = value;
+      }
     }
 
     await updateDoc(docRef, updateData);
