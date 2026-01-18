@@ -1,12 +1,58 @@
 /**
  * 楽天ブックスAPIを使用して本を検索するユーティリティ
- * 
+ * 楽天APIで見つからない場合はGoogle Books APIにフォールバック
+ *
  * 使用方法:
  * 1. https://webservice.rakuten.co.jp/app/create でアプリを登録
  * 2. アプリ登録後、アプリケーションIDを取得
  * 3. .envファイルに RAKUTEN_APPLICATION_ID を設定するか、
  *    searchBookByISBN関数のapplicationIdを直接設定してください
  */
+
+// Google Books API Key（Firebase API Keyと共通）
+const GOOGLE_BOOKS_API_KEY = process.env.FIREBASE_API_KEY || '';
+
+// Google Books APIのレスポンス型
+interface GoogleBooksVolumeInfo {
+  title: string;
+  authors?: string[];
+  publisher?: string;
+  publishedDate?: string;
+  description?: string;
+  industryIdentifiers?: {
+    type: string;
+    identifier: string;
+  }[];
+  imageLinks?: {
+    thumbnail?: string;
+    smallThumbnail?: string;
+    small?: string;
+    medium?: string;
+    large?: string;
+  };
+  infoLink?: string;
+}
+
+interface GoogleBooksSaleInfo {
+  listPrice?: {
+    amount: number;
+    currencyCode: string;
+  };
+  retailPrice?: {
+    amount: number;
+    currencyCode: string;
+  };
+}
+
+interface GoogleBooksItem {
+  volumeInfo: GoogleBooksVolumeInfo;
+  saleInfo?: GoogleBooksSaleInfo;
+}
+
+interface GoogleBooksApiResponse {
+  totalItems: number;
+  items?: GoogleBooksItem[];
+}
 
 interface RakutenBookItem {
   title: string;
@@ -149,6 +195,96 @@ function addToRequestHistory(isbn: string): void {
 }
 
 /**
+ * Google Books APIで本を検索（フォールバック用）
+ * @param isbn ISBNコード
+ * @returns 本の情報、見つからない場合はnull
+ */
+async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
+  try {
+    const apiUrl = `https://www.googleapis.com/books/v1/volumes`;
+    const params = new URLSearchParams({
+      q: `isbn:${isbn}`,
+      key: GOOGLE_BOOKS_API_KEY,
+      maxResults: '1',
+    });
+
+    console.log('Google Books APIリクエスト:', {
+      isbn: isbn,
+      url: `${apiUrl}?q=isbn:${isbn}`,
+    });
+
+    const response = await fetch(`${apiUrl}?${params.toString()}`);
+
+    if (!response.ok) {
+      console.error('Google Books API error:', response.status);
+      return null;
+    }
+
+    const data: GoogleBooksApiResponse = await response.json();
+
+    if (!data.items || data.items.length === 0) {
+      console.log('Google Books APIで本が見つかりませんでした:', isbn);
+      return null;
+    }
+
+    const item = data.items[0];
+    const volumeInfo = item.volumeInfo;
+    const saleInfo = item.saleInfo;
+
+    // ISBNを取得（ISBN_13を優先）
+    let bookIsbn = isbn;
+    if (volumeInfo.industryIdentifiers) {
+      const isbn13 = volumeInfo.industryIdentifiers.find(
+        (id) => id.type === 'ISBN_13'
+      );
+      const isbn10 = volumeInfo.industryIdentifiers.find(
+        (id) => id.type === 'ISBN_10'
+      );
+      bookIsbn = isbn13?.identifier || isbn10?.identifier || isbn;
+    }
+
+    // 画像URLを取得（HTTPSに変換）
+    let imageUrl = '';
+    if (volumeInfo.imageLinks) {
+      const rawUrl =
+        volumeInfo.imageLinks.medium ||
+        volumeInfo.imageLinks.large ||
+        volumeInfo.imageLinks.thumbnail ||
+        volumeInfo.imageLinks.smallThumbnail ||
+        '';
+      // HTTPをHTTPSに変換
+      imageUrl = rawUrl.replace(/^http:/, 'https:');
+    }
+
+    // 価格を取得（日本円の場合のみ）
+    let price: number | undefined;
+    if (saleInfo?.listPrice?.currencyCode === 'JPY') {
+      price = saleInfo.listPrice.amount;
+    } else if (saleInfo?.retailPrice?.currencyCode === 'JPY') {
+      price = saleInfo.retailPrice.amount;
+    }
+
+    const book: Book = {
+      title: volumeInfo.title || '不明なタイトル',
+      author: volumeInfo.authors?.join(', ') || '著者不明',
+      isbn: bookIsbn,
+      url: volumeInfo.infoLink || `https://books.google.com/books?vid=ISBN${isbn}`,
+      imageUrl: imageUrl,
+      publisher: volumeInfo.publisher,
+      publishDate: volumeInfo.publishedDate,
+      price: price,
+      description: volumeInfo.description,
+    };
+
+    console.log('Google Books APIから本を取得:', book.title);
+    return book;
+  } catch (error) {
+    console.error('Google Books APIエラー:', error);
+    return null;
+  }
+}
+
+/**
  * ISBNコードで本を検索
  * @param isbn ISBNコード（10桁または13桁、ハイフンなし推奨）
  * @returns 本の情報、見つからない場合はnull
@@ -246,6 +382,16 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
     const data: RakutenApiResponse = await response.json();
 
     if (!data.Items || data.Items.length === 0) {
+      // 楽天APIで見つからない場合、Google Books APIにフォールバック
+      console.log('楽天APIで本が見つかりませんでした。Google Books APIで検索します:', normalizedISBN);
+      const googleBook = await searchBookByISBNFromGoogle(normalizedISBN);
+      if (googleBook) {
+        // Google Booksから取得した本をキャッシュに保存
+        setCachedBook(normalizedISBN, googleBook);
+        return googleBook;
+      }
+      // どちらのAPIでも見つからない場合はnullをキャッシュして返す
+      setCachedBook(normalizedISBN, null);
       return null;
     }
 
