@@ -26,6 +26,7 @@ export interface UseBarcodeScanner {
   scannedCount: number;
   handleScan: (barcode: string) => void;
   confirmBook: () => Promise<void>;
+  confirmAndStop: () => Promise<void>;
   skipBook: () => void;
   dismissError: () => void;
   startScanning: () => void;
@@ -114,8 +115,8 @@ export function useBarcodeScanner(): UseBarcodeScanner {
         return;
       }
 
-      // スキャン状態でない場合は無視
-      if (state.status !== 'scanning') {
+      // スキャン可能な状態でない場合は無視（scanning と cooldown を許可）
+      if (state.status !== 'scanning' && state.status !== 'cooldown') {
         console.log('Not in scanning state, ignoring. Current state:', state.status);
         return;
       }
@@ -145,6 +146,12 @@ export function useBarcodeScanner(): UseBarcodeScanner {
 
       isProcessingRef.current = true;
       addToRecentScans(normalized);
+
+      // cooldown中にスキャンされた場合、タイマーをキャンセル
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+        cooldownTimerRef.current = null;
+      }
 
       // ISBN-13形式に正規化（ISBN-10の場合は変換）
       const isbn13 = normalizeToISBN13(normalized);
@@ -219,7 +226,7 @@ export function useBarcodeScanner(): UseBarcodeScanner {
   );
 
   /**
-   * 本を本棚に追加
+   * 本を本棚に追加（連続スキャン用）
    */
   const confirmBook = useCallback(async () => {
     if (state.status !== 'confirming') return;
@@ -254,6 +261,41 @@ export function useBarcodeScanner(): UseBarcodeScanner {
   }, [state, startCooldown]);
 
   /**
+   * 本を本棚に追加してスキャンを停止
+   */
+  const confirmAndStop = useCallback(async () => {
+    if (state.status !== 'confirming') return;
+
+    const book = state.book;
+    setState({ status: 'saving', book });
+
+    try {
+      const userId = getUserId();
+      if (!userId) {
+        setState({
+          status: 'error',
+          message: 'ログインが必要です。',
+          canRetry: false,
+        });
+        return;
+      }
+
+      await addBookToFirebase(book, userId, book.description);
+      setScannedCount((prev) => prev + 1);
+
+      // 保存成功後、スキャンを停止
+      setState({ status: 'idle' });
+    } catch (error) {
+      console.error('Error saving book:', error);
+      setState({
+        status: 'error',
+        message: '本の保存に失敗しました。\nもう一度お試しください。',
+        canRetry: true,
+      });
+    }
+  }, [state]);
+
+  /**
    * 本をスキップ
    */
   const skipBook = useCallback(() => {
@@ -276,6 +318,7 @@ export function useBarcodeScanner(): UseBarcodeScanner {
     scannedCount,
     handleScan,
     confirmBook,
+    confirmAndStop,
     skipBook,
     dismissError,
     startScanning,

@@ -11,6 +11,7 @@ import { StyleSheet, Text, View } from 'react-native';
 interface WebBarcodeScannerProps {
   onScan: (barcode: string) => void;
   isActive: boolean;
+  resetTrigger?: number;
 }
 
 // BarcodeDetector APIの型定義
@@ -76,7 +77,7 @@ const injectQuaggaStyles = () => {
   document.head.appendChild(style);
 };
 
-export function WebBarcodeScanner({ onScan, isActive }: WebBarcodeScannerProps) {
+export function WebBarcodeScanner({ onScan, isActive, resetTrigger }: WebBarcodeScannerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<BarcodeDetector | null>(null);
@@ -94,6 +95,13 @@ export function WebBarcodeScanner({ onScan, isActive }: WebBarcodeScannerProps) 
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
+
+  // resetTriggerが変わったらlastScannedRefをリセット（連続スキャン用）
+  useEffect(() => {
+    if (resetTrigger !== undefined) {
+      lastScannedRef.current = '';
+    }
+  }, [resetTrigger]);
 
   // BarcodeDetector APIを使用したスキャン
   const initNativeScanner = async () => {

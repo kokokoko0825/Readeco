@@ -9,8 +9,9 @@ interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
   isActive: boolean;
   onPermissionDenied?: () => void;
+  resetTrigger?: number;
 }
 
-export function BarcodeScanner({ onScan, isActive }: BarcodeScannerProps) {
-  return <WebBarcodeScanner onScan={onScan} isActive={isActive} />;
+export function BarcodeScanner({ onScan, isActive, resetTrigger }: BarcodeScannerProps) {
+  return <WebBarcodeScanner onScan={onScan} isActive={isActive} resetTrigger={resetTrigger} />;
 }

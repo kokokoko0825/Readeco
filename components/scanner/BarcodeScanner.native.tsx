@@ -9,14 +9,16 @@ interface BarcodeScannerProps {
   onScan: (barcode: string) => void;
   isActive: boolean;
   onPermissionDenied?: () => void;
+  resetTrigger?: number;
 }
 
-export function BarcodeScanner({ onScan, isActive, onPermissionDenied }: BarcodeScannerProps) {
+export function BarcodeScanner({ onScan, isActive, onPermissionDenied, resetTrigger }: BarcodeScannerProps) {
   return (
     <VisionCameraBarcodeScanner
       onScan={onScan}
       isActive={isActive}
       onPermissionDenied={onPermissionDenied}
+      resetTrigger={resetTrigger}
     />
   );
 }

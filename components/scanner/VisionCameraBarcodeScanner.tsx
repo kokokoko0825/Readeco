@@ -18,12 +18,14 @@ interface VisionCameraBarcodeScannerProps {
   onScan: (barcode: string) => void;
   isActive: boolean;
   onPermissionDenied?: () => void;
+  resetTrigger?: number;
 }
 
 export function VisionCameraBarcodeScanner({
   onScan,
   isActive,
   onPermissionDenied,
+  resetTrigger,
 }: VisionCameraBarcodeScannerProps) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const device = useCameraDevice('back');
@@ -31,25 +33,36 @@ export function VisionCameraBarcodeScanner({
 
   const lastScannedRef = useRef<string>('');
   const onScanRef = useRef(onScan);
+  const isActiveRef = useRef(isActive);
 
   // コールバックを最新に保つ
   useEffect(() => {
     onScanRef.current = onScan;
   }, [onScan]);
 
-  // isActiveがfalseになったらリセット
+  // isActiveの最新値をrefに保持
   useEffect(() => {
+    isActiveRef.current = isActive;
+    // isActiveがfalseになったらリセット
     if (!isActive) {
       lastScannedRef.current = '';
     }
   }, [isActive]);
 
-  // CodeScanner設定
+  // resetTriggerが変わったらlastScannedRefをリセット（連続スキャン用）
+  useEffect(() => {
+    if (resetTrigger !== undefined) {
+      console.log('Reset trigger changed, clearing lastScannedRef');
+      lastScannedRef.current = '';
+    }
+  }, [resetTrigger]);
+
+  // CodeScanner設定（依存配列を空にしてスキャナーの再初期化を防ぐ）
   const codeScanner = useCodeScanner({
     codeTypes: ['ean-13', 'ean-8', 'upc-a', 'upc-e'],
     onCodeScanned: useCallback(
       (codes: Code[]) => {
-        if (!isActive || codes.length === 0) return;
+        if (!isActiveRef.current || codes.length === 0) return;
 
         const code = codes[0];
         const value = code.value;
@@ -63,7 +76,7 @@ export function VisionCameraBarcodeScanner({
         console.log('VisionCamera barcode scanned:', value, 'type:', code.type);
         onScanRef.current(value);
       },
-      [isActive]
+      []
     ),
   });
 

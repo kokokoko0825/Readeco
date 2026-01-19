@@ -19,6 +19,7 @@ export default function BarcodeScannerScreen() {
     scannedCount,
     handleScan,
     confirmBook,
+    confirmAndStop,
     skipBook,
     dismissError,
     startScanning,
@@ -52,8 +53,8 @@ export default function BarcodeScannerScreen() {
     }
   };
 
-  // 確認・保存成功時のアラート
-  const handleConfirm = async () => {
+  // 本棚に追加してスキャンを停止
+  const handleConfirmAndStop = async () => {
     const bookTitle =
       state.status === 'confirming'
         ? state.book.title.length > 25
@@ -61,10 +62,18 @@ export default function BarcodeScannerScreen() {
           : state.book.title
         : '';
 
-    await confirmBook();
+    await confirmAndStop();
 
-    // 保存成功後にアラート表示
-    showAlert('追加完了', `「${bookTitle}」を本棚に追加しました。\n\n続けて次の本をスキャンできます。`);
+    // 保存成功後にアラート表示して画面を閉じる
+    showAlert('追加完了', `「${bookTitle}」を本棚に追加しました。`, [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  };
+
+  // 本棚に追加して連続スキャン（アラートなしで即座に次のスキャンへ）
+  const handleContinuousScan = async () => {
+    await confirmBook();
+    // アラートは表示せず、ヘッダーの「〇冊登録済み」で確認可能
   };
 
   // エラー時のアラート
@@ -79,7 +88,14 @@ export default function BarcodeScannerScreen() {
     }
   }, [state, dismissError]);
 
-  // スキャン可能な状態かどうか
+  // カメラをアクティブに保つ状態かどうか（連続スキャンのためにconfirming/saving中もカメラを維持）
+  const isCameraActive =
+    state.status === 'scanning' ||
+    state.status === 'cooldown' ||
+    state.status === 'confirming' ||
+    state.status === 'saving';
+
+  // スキャン可能な状態かどうか（UIの表示用）
   const isScanning = state.status === 'scanning' || state.status === 'cooldown';
 
   // 現在の状態を表示するテキスト
@@ -116,8 +132,9 @@ export default function BarcodeScannerScreen() {
       <View style={styles.scannerContainer}>
         <BarcodeScanner
           onScan={handleScan}
-          isActive={isScanning}
+          isActive={isCameraActive}
           onPermissionDenied={handleClose}
+          resetTrigger={scannedCount}
         />
 
         {/* スキャン領域オーバーレイ（ネイティブのみ、Webはhtml5-qrcodeが独自表示） */}
@@ -144,8 +161,9 @@ export default function BarcodeScannerScreen() {
       <BookConfirmModal
         book={state.status === 'confirming' || state.status === 'saving' ? state.book : null}
         visible={state.status === 'confirming' || state.status === 'saving'}
-        onConfirm={handleConfirm}
-        onSkip={skipBook}
+        onConfirm={handleConfirmAndStop}
+        onContinuousScan={handleContinuousScan}
+        onClose={skipBook}
         isSaving={state.status === 'saving'}
       />
     </View>

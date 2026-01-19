@@ -1,6 +1,6 @@
 /**
  * 本の確認モーダルコンポーネント
- * スキャンした本の情報を表示し、追加/スキップの選択を提供
+ * スキャンした本の情報を表示し、追加/連続スキャンの選択を提供
  */
 
 import { Icon } from '@/components/Icon';
@@ -13,7 +13,8 @@ interface BookConfirmModalProps {
   book: Book | null;
   visible: boolean;
   onConfirm: () => void;
-  onSkip: () => void;
+  onContinuousScan: () => void;
+  onClose: () => void;
   isSaving: boolean;
 }
 
@@ -21,7 +22,8 @@ export function BookConfirmModal({
   book,
   visible,
   onConfirm,
-  onSkip,
+  onContinuousScan,
+  onClose,
   isSaving,
 }: BookConfirmModalProps) {
   const colorScheme = useColorScheme();
@@ -30,9 +32,22 @@ export function BookConfirmModal({
   if (!book) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onSkip}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={[styles.content, { backgroundColor: colors.background }]}>
+          {/* 閉じるボタン（左上） */}
+          <Pressable
+            style={[
+              styles.closeButton,
+              { backgroundColor: colorScheme === 'dark' ? '#4A4A4A' : '#E8E8E8' },
+            ]}
+            onPress={onClose}
+            disabled={isSaving}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Icon name="close" size={20} color={colors.text} />
+          </Pressable>
+
           {/* サムネイル */}
           {book.imageUrl ? (
             <Image source={{ uri: book.imageUrl }} style={styles.thumbnail} resizeMode="contain" />
@@ -67,30 +82,31 @@ export function BookConfirmModal({
           {/* ボタン */}
           <View style={styles.buttons}>
             <Pressable
-              style={[
-                styles.button,
-                styles.skipButton,
-                { backgroundColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0' },
-              ]}
-              onPress={onSkip}
-              disabled={isSaving}
-            >
-              <Text
-                style={[
-                  styles.skipButtonText,
-                  { color: colorScheme === 'dark' ? '#F5F0E6' : '#333' },
-                ]}
-              >
-                スキップ
-              </Text>
-            </Pressable>
-
-            <Pressable
               style={[styles.button, styles.confirmButton, isSaving && styles.buttonDisabled]}
               onPress={onConfirm}
               disabled={isSaving}
             >
               <Text style={styles.confirmButtonText}>{isSaving ? '保存中...' : '本棚に追加'}</Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.button,
+                styles.continuousButton,
+                { backgroundColor: colorScheme === 'dark' ? '#3D352D' : '#E0E0E0' },
+                isSaving && styles.buttonDisabled,
+              ]}
+              onPress={onContinuousScan}
+              disabled={isSaving}
+            >
+              <Text
+                style={[
+                  styles.continuousButtonText,
+                  { color: colorScheme === 'dark' ? '#F5F0E6' : '#333' },
+                ]}
+              >
+                {isSaving ? '保存中...' : '連続スキャン'}
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -118,6 +134,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
     elevation: 5,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   thumbnail: {
     width: 140,
@@ -165,16 +193,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
   },
-  skipButton: {},
-  skipButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
   confirmButton: {
     backgroundColor: '#838A2D',
   },
   confirmButtonText: {
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  continuousButton: {},
+  continuousButtonText: {
     fontSize: 16,
     fontWeight: '600',
   },
