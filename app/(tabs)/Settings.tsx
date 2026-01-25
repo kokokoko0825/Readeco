@@ -1,6 +1,8 @@
+import Constants from 'expo-constants';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -15,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useReleaseNotes } from '@/contexts/ReleaseNotesContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { showAlert } from '@/utils/alert';
 import { copyToClipboard } from '@/utils/clipboard';
@@ -46,11 +49,40 @@ type ModalType =
   | 'password'
   | 'deleteAccount'
   | 'addFriend'
+  | 'faq'
+  | 'terms'
+  | 'copyright'
+  | 'privacy'
   | null;
+
+// FAQデータ
+const FAQ_DATA = [
+  {
+    question: 'バーコードがうまく読み取れません',
+    answer: 'カメラを本のバーコードに近づけ、明るい場所でスキャンしてください。ISBN バーコード（978または979で始まる13桁の数字）に対応しています。',
+  },
+  {
+    question: '登録した本が見つかりません',
+    answer: '楽天ブックスおよびGoogle Books のデータベースに登録されていない本は検索できない場合があります。',
+  },
+  {
+    question: 'フレンドを追加するには？',
+    answer: '設定画面のフレンドセクションから、相手のユーザーIDを入力して追加できます。ユーザーIDはプロフィール欄でコピーできます。',
+  },
+  {
+    question: 'アカウントを削除したい',
+    answer: '設定画面の「危険な操作」セクションからアカウントを削除できます。削除すると全てのデータが失われ、復元できません。',
+  },
+  {
+    question: 'オフラインでも使えますか？',
+    answer: '本の検索・登録にはインターネット接続が必要です。登録済みの本棚の閲覧はオフラインでも可能です。',
+  },
+];
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const { user } = useAuth();
+  const { showReleaseNotes } = useReleaseNotes();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userSettings, setUserSettingsState] = useState<UserSettings | null>(
@@ -559,6 +591,60 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* 法的情報 */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>法的情報</ThemedText>
+          <View style={[styles.card, { backgroundColor: cardBg }]}>
+            <SettingItem
+              icon="help-outline"
+              label="FAQ"
+              onPress={() => openModal('faq')}
+            />
+            <SettingItem
+              icon="article"
+              label="利用規約"
+              onPress={() => openModal('terms')}
+            />
+            <SettingItem
+              icon="copyright"
+              label="著作権情報"
+              onPress={() => openModal('copyright')}
+            />
+            <SettingItem
+              icon="policy"
+              label="個人情報保護方針"
+              onPress={() => openModal('privacy')}
+            />
+          </View>
+        </View>
+
+        {/* アプリについて */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>アプリについて</ThemedText>
+          <View style={[styles.card, { backgroundColor: cardBg }]}>
+            <SettingItem
+              icon="article"
+              label="リリースノート"
+              onPress={showReleaseNotes}
+            />
+            <SettingItem
+              icon="email"
+              label="問い合わせ"
+              onPress={() => Linking.openURL('mailto:support@readeco.org')}
+            />
+          </View>
+        </View>
+
+        {/* アプリ情報フッター */}
+        <View style={styles.appInfoFooter}>
+          <ThemedText style={styles.appVersion}>
+            Readeco v{Constants.expoConfig?.version || '1.0.0'}
+          </ThemedText>
+          <ThemedText style={styles.appUserId}>
+            User ID: {userId || ''}
+          </ThemedText>
+        </View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
@@ -958,6 +1044,268 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
       </Modal>
+
+      {/* FAQモーダル */}
+      <Modal
+        visible={activeModal === 'faq'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContentLarge, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>FAQ</ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.legalModalBody}>
+                {FAQ_DATA.map((item, index) => (
+                  <View key={index} style={styles.faqItem}>
+                    <ThemedText style={styles.faqQuestion}>
+                      Q. {item.question}
+                    </ThemedText>
+                    <ThemedText style={styles.faqAnswer}>
+                      A. {item.answer}
+                    </ThemedText>
+                  </View>
+                ))}
+                <View style={styles.legalFooter}>
+                  <ThemedText style={styles.legalFooterText}>
+                    その他のご質問は support@readeco.org までお問い合わせください
+                  </ThemedText>
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* 利用規約モーダル */}
+      <Modal
+        visible={activeModal === 'terms'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContentLarge, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>利用規約</ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.legalModalBody}>
+                <ThemedText style={styles.legalSectionTitle}>
+                  第1条（適用）
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  本規約は、Readeco（以下「本サービス」）の利用に関する条件を定めるものです。ユーザーは本規約に同意した上で本サービスを利用するものとします。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  第2条（利用登録）
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  本サービスの利用を希望する者は、本規約に同意の上、所定の方法により利用登録を申請するものとします。登録情報に虚偽があった場合、利用を制限することがあります。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  第3条（禁止事項）
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  ユーザーは以下の行為を行ってはなりません。{'\n'}
+                  ・法令または公序良俗に違反する行為{'\n'}
+                  ・他のユーザーまたは第三者の権利を侵害する行為{'\n'}
+                  ・本サービスの運営を妨害する行為{'\n'}
+                  ・不正アクセスまたはこれを試みる行為
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  第4条（免責事項）
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  本サービスは現状有姿で提供されます。運営者は、本サービスの完全性、正確性、有用性等について保証しません。本サービスの利用により生じた損害について、運営者は責任を負いません。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  第5条（サービスの変更・終了）
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  運営者は、事前の通知なく本サービスの内容を変更、または提供を終了することができます。
+                </ThemedText>
+
+                <View style={styles.legalFooter}>
+                  <ThemedText style={styles.legalFooterText}>
+                    最終更新日: 2026年1月25日
+                  </ThemedText>
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* 著作権情報モーダル */}
+      <Modal
+        visible={activeModal === 'copyright'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContentLarge, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>著作権情報</ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.legalModalBody}>
+                <ThemedText style={styles.legalSectionTitle}>
+                  アプリケーション著作権
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  © 2026 Readeco. All rights reserved.{'\n\n'}
+                  本アプリケーションおよびそのコンテンツ（ロゴ、デザイン、コード等）の著作権は Readeco に帰属します。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  書籍データについて
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  本アプリで表示される書籍情報は、以下のサービスから取得しています。{'\n\n'}
+                  ・楽天ブックス API{'\n'}
+                  ・Google Books API{'\n\n'}
+                  各書籍の表紙画像、タイトル、著者情報等の著作権は、それぞれの権利者に帰属します。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  オープンソースライセンス
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  本アプリは以下のオープンソースソフトウェアを使用しています。{'\n\n'}
+                  ・React Native (MIT License){'\n'}
+                  ・Expo (MIT License){'\n'}
+                  ・Firebase (Apache License 2.0){'\n\n'}
+                  各ライブラリのライセンス情報は、それぞれの公式サイトをご確認ください。
+                </ThemedText>
+
+                <View style={styles.legalFooter}>
+                  <ThemedText style={styles.legalFooterText}>
+                    お問い合わせ: support@readeco.org
+                  </ThemedText>
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </View>
+      </Modal>
+
+      {/* 個人情報保護方針モーダル */}
+      <Modal
+        visible={activeModal === 'privacy'}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalOverlay} onPress={closeModal}>
+            <Pressable
+              style={[styles.modalContentLarge, { backgroundColor: cardBg }]}
+              onPress={(e) => e.stopPropagation()}>
+              <View style={styles.modalHeader}>
+                <ThemedText style={styles.modalTitle}>個人情報保護方針</ThemedText>
+                <Pressable onPress={closeModal} style={styles.modalCloseButton}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={Colors[colorScheme ?? 'light'].text}
+                  />
+                </Pressable>
+              </View>
+              <ScrollView style={styles.legalModalBody}>
+                <ThemedText style={styles.legalSectionTitle}>
+                  1. 収集する情報
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  本サービスでは、以下の情報を収集します。{'\n\n'}
+                  ・メールアドレス（アカウント認証用）{'\n'}
+                  ・表示名（任意設定）{'\n'}
+                  ・登録した書籍情報{'\n'}
+                  ・フレンド情報
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  2. 情報の利用目的
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  収集した情報は以下の目的で利用します。{'\n\n'}
+                  ・本サービスの提供・運営{'\n'}
+                  ・ユーザー認証{'\n'}
+                  ・サービス改善のための分析{'\n'}
+                  ・重要なお知らせの通知
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  3. 情報の第三者提供
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  法令に基づく場合を除き、ユーザーの同意なく個人情報を第三者に提供することはありません。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  4. 情報の保護
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  ユーザー情報は Firebase のセキュリティ機能により保護されています。不正アクセス、紛失、破壊、改ざんから保護するため、適切な技術的措置を講じています。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  5. データの削除
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  ユーザーはいつでもアカウントを削除し、関連するデータを消去することができます。設定画面の「アカウントを削除」から手続きできます。
+                </ThemedText>
+
+                <ThemedText style={styles.legalSectionTitle}>
+                  6. お問い合わせ
+                </ThemedText>
+                <ThemedText style={styles.legalText}>
+                  個人情報の取扱いに関するお問い合わせは、以下までご連絡ください。{'\n\n'}
+                  support@readeco.org
+                </ThemedText>
+
+                <View style={styles.legalFooter}>
+                  <ThemedText style={styles.legalFooterText}>
+                    最終更新日: 2026年1月25日
+                  </ThemedText>
+                </View>
+              </ScrollView>
+            </Pressable>
+          </Pressable>
+        </View>
+      </Modal>
+
     </ThemedView>
   );
 }
@@ -1146,6 +1494,22 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
+  // アプリ情報フッター
+  appInfoFooter: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+  },
+  appVersion: {
+    fontSize: 14,
+    opacity: 0.5,
+    marginBottom: 4,
+  },
+  appUserId: {
+    fontSize: 12,
+    opacity: 0.4,
+  },
+
   // 下部スペーサー
   bottomSpacer: {
     height: 40,
@@ -1256,5 +1620,96 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#E53935',
     lineHeight: 20,
+  },
+
+  // 大きなモーダル（法的情報・リリースノート用）
+  modalContentLarge: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  legalModalBody: {
+    maxHeight: 400,
+  },
+
+  // FAQ スタイル
+  faqItem: {
+    marginBottom: 20,
+  },
+  faqQuestion: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  faqAnswer: {
+    fontSize: 14,
+    opacity: 0.8,
+    lineHeight: 22,
+    paddingLeft: 8,
+  },
+
+  // 法的情報テキストスタイル
+  legalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  legalText: {
+    fontSize: 14,
+    lineHeight: 22,
+    opacity: 0.85,
+  },
+  legalFooter: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(128, 128, 128, 0.2)',
+    alignItems: 'center',
+  },
+  legalFooterText: {
+    fontSize: 12,
+    opacity: 0.5,
+  },
+
+  // リリースノートスタイル
+  releaseItem: {
+    marginBottom: 24,
+  },
+  releaseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  releaseVersion: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginRight: 12,
+  },
+  releaseDate: {
+    fontSize: 13,
+    opacity: 0.5,
+  },
+  releaseChange: {
+    flexDirection: 'row',
+    paddingLeft: 8,
+    marginBottom: 6,
+  },
+  releaseBullet: {
+    fontSize: 14,
+    marginRight: 8,
+    opacity: 0.6,
+  },
+  releaseChangeText: {
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
   },
 });

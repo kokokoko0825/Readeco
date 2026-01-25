@@ -11,6 +11,7 @@ import 'react-native-reanimated';
 import { AuthGuard } from '@/components/AuthGuard';
 import { CustomSplashScreen } from '@/components/SplashScreen';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ReleaseNotesProvider } from '@/contexts/ReleaseNotesContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 
@@ -149,15 +150,16 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.gestureRoot}>
       <AuthProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <AuthGuard>
-            <Stack>
-              <Stack.Screen name="auth" options={{ headerShown: false }} />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-              <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
-            </Stack>
-            <StatusBar style="auto" />
-          </AuthGuard>
+          <ReleaseNotesProvider>
+            <AuthGuard>
+              <Stack>
+                <Stack.Screen name="auth" options={{ headerShown: false }} />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+                <Stack.Screen name="book/[id]" options={{ headerShown: false }} />
+              </Stack>
+              <StatusBar style="auto" />
+            </AuthGuard>
           {Platform.OS === 'web' && deferredInstallEvent && (
             <View style={styles.installBanner}>
               <Text style={styles.installText}>アプリをインストールできます</Text>
@@ -169,6 +171,7 @@ export default function RootLayout() {
           {showCustomSplash && (
             <CustomSplashScreen onFinish={() => setShowCustomSplash(false)} />
           )}
+          </ReleaseNotesProvider>
         </ThemeProvider>
       </AuthProvider>
     </GestureHandlerRootView>
