@@ -23,11 +23,11 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: '1.1.0',
-    date: '2026-01-20',
+    version: '1.1.1',
+    date: '2026-01-25',
     changes: [
-      '改善: 読み取れる本を増やしました',
-      '改善: 設定ページに「法的情報」と「アプリについて」を追加',
+      '改善: 問い合わせ先を`support@readeco.org`に統一しました。',
+      'またそれに伴い、設定ページに問い合わせボタンを作成しました。',
     ],
   },
 ];

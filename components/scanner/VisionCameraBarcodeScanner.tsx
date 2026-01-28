@@ -1,18 +1,16 @@
 /**
- * VisionCamera バーコードスキャナーコンポーネント
- * react-native-vision-camera v4 の CodeScanner API を使用
- * MLKit (Android) / VisionKit (iOS) ベースで高精度なバーコード認識
+ * Expo Camera ベースのバーコードスキャナーコンポーネント
+ * Expo Go でも動作するように、react-native-vision-camera ではなく
+ * expo-camera の CameraView / バーコードスキャン機能を利用する。
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import {
-  Camera,
-  useCameraDevice,
-  useCameraPermission,
-  useCodeScanner,
-  type Code,
-} from 'react-native-vision-camera';
+  CameraView,
+  useCameraPermissions,
+  type BarcodeScanningResult,
+} from 'expo-camera';
 
 interface VisionCameraBarcodeScannerProps {
   onScan: (barcode: string) => void;
@@ -27,8 +25,7 @@ export function VisionCameraBarcodeScanner({
   onPermissionDenied,
   resetTrigger,
 }: VisionCameraBarcodeScannerProps) {
-  const { hasPermission, requestPermission } = useCameraPermission();
-  const device = useCameraDevice('back');
+  const [permission, requestPermission] = useCameraPermissions();
   const [isInitialized, setIsInitialized] = useState(false);
 
   const lastScannedRef = useRef<string>('');
@@ -57,49 +54,34 @@ export function VisionCameraBarcodeScanner({
     }
   }, [resetTrigger]);
 
-  // CodeScanner設定（依存配列を空にしてスキャナーの再初期化を防ぐ）
-  const codeScanner = useCodeScanner({
-    codeTypes: ['ean-13', 'ean-8', 'upc-a', 'upc-e'],
-    onCodeScanned: useCallback(
-      (codes: Code[]) => {
-        if (!isActiveRef.current || codes.length === 0) return;
+  // Expo Camera のバーコードコールバック
+  const handleBarcodeScanned = useCallback(
+    (result: BarcodeScanningResult) => {
+      if (!isActiveRef.current) return;
 
-        const code = codes[0];
-        const value = code.value;
+      const value = result.data;
+      if (!value) return;
 
-        if (!value) return;
+      // 同じバーコードの連続読み取りを防止
+      if (value === lastScannedRef.current) return;
 
-        // 同じバーコードの連続読み取りを防止
-        if (value === lastScannedRef.current) return;
-
-        lastScannedRef.current = value;
-        console.log('VisionCamera barcode scanned:', value, 'type:', code.type);
-        onScanRef.current(value);
-      },
-      []
-    ),
-  });
+      lastScannedRef.current = value;
+      console.log('ExpoCamera barcode scanned:', value, 'type:', result.type);
+      onScanRef.current(value);
+    },
+    []
+  );
 
   // 初回マウント時に権限リクエスト
   useEffect(() => {
     const initCamera = async () => {
-      if (hasPermission === false) {
+      if (permission?.granted === false) {
         await requestPermission();
       }
       setIsInitialized(true);
     };
     initCamera();
-  }, [hasPermission, requestPermission]);
-
-  // カメラエラーハンドラー
-  const handleError = useCallback((error: Error) => {
-    console.error('VisionCamera error:', error);
-  }, []);
-
-  // カメラ初期化完了ハンドラー
-  const handleInitialized = useCallback(() => {
-    console.log('VisionCamera initialized');
-  }, []);
+  }, [permission?.granted, requestPermission]);
 
   // 初期化中
   if (!isInitialized) {
@@ -111,30 +93,8 @@ export function VisionCameraBarcodeScanner({
     );
   }
 
-  // デバイスがない場合
-  if (!device) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.permissionContainer}>
-          <Text style={styles.permissionTitle}>カメラが見つかりません</Text>
-          <Text style={styles.permissionText}>
-            このデバイスにはカメラがないか、利用できない状態です
-          </Text>
-          {onPermissionDenied && (
-            <Pressable
-              style={[styles.permissionButton, styles.secondaryButton]}
-              onPress={onPermissionDenied}
-            >
-              <Text style={styles.permissionButtonText}>閉じる</Text>
-            </Pressable>
-          )}
-        </View>
-      </View>
-    );
-  }
-
   // 権限がない場合
-  if (!hasPermission) {
+  if (!permission || !permission.granted) {
     return (
       <View style={styles.container}>
         <View style={styles.permissionContainer}>
@@ -160,15 +120,15 @@ export function VisionCameraBarcodeScanner({
 
   return (
     <View style={styles.container}>
-      <Camera
+      <CameraView
         style={StyleSheet.absoluteFill}
-        device={device}
-        isActive={isActive}
-        codeScanner={codeScanner}
-        onError={handleError}
-        onInitialized={handleInitialized}
-        enableZoomGesture={false}
-        torch="off"
+        facing="back"
+        // expo-camera 側のバーコードタイプ指定（ISBN で使う EAN/UPC 系を許可）
+        barcodeScannerSettings={{
+          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e'],
+        }}
+        // 非アクティブ時はスキャンを止める
+        onBarcodeScanned={isActive ? handleBarcodeScanned : undefined}
       />
     </View>
   );

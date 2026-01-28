@@ -77,6 +77,10 @@ const FAQ_DATA = [
     question: 'オフラインでも使えますか？',
     answer: '本の検索・登録にはインターネット接続が必要です。登録済みの本棚の閲覧はオフラインでも可能です。',
   },
+  {
+    question: 'グループ化はどうやって行いますか？',
+    answer: 'グループに属させたい本を長押しすることでグループ先を選択できます。',
+  }
 ];
 
 export default function SettingsScreen() {

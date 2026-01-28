@@ -6,7 +6,7 @@
 
 リリースノートは、アプリの新機能や変更点をユーザーに通知するための機能です。
 
-- **自動表示**: 新しいバージョンがリリースされると、ユーザーがログイン後に**どのページでも**自動でリリースノートモーダルが表示されます
+- **自動表示**: 新しいバージョンがリリースされると、ユーザーが設定画面を開いた際に自動でリリースノートモーダルが表示されます
 - **手動確認**: 設定画面の「アプリについて」→「リリースノート」から、いつでも確認できます
 
 ## リリースノートデータの場所
@@ -14,15 +14,20 @@
 リリースノートのデータは以下のファイルにあります：
 
 ```
-constants/release-notes.ts
+app/(tabs)/Settings.tsx
 ```
+
+```
+components/constants/release-notes.ts
+```
+にもある
 
 ファイル内の `RELEASE_NOTES` 配列を編集します。
 
 ## データ形式
 
 ```typescript
-export const RELEASE_NOTES: ReleaseNote[] = [
+const RELEASE_NOTES = [
   {
     version: '1.1.0',      // バージョン番号（app.json の version と一致させる）
     date: '2024-02-01',    // リリース日（YYYY-MM-DD形式）
@@ -50,13 +55,13 @@ export const RELEASE_NOTES: ReleaseNote[] = [
 
 ### 2. RELEASE_NOTES に新しいエントリを追加
 
-`constants/release-notes.ts` を開き、`RELEASE_NOTES` 配列の**先頭**に新しいエントリを追加します：
+`app/(tabs)/Settings.tsx` を開き、`RELEASE_NOTES` 配列の**先頭**に新しいエントリを追加します：
 
 ```typescript
-export const RELEASE_NOTES: ReleaseNote[] = [
+const RELEASE_NOTES = [
   // ↓ 新しいエントリを先頭に追加
   {
-    version: '1.2.0',
+    version: '1.1.0',
     date: '2024-02-01',
     changes: [
       '新機能: Google Books API によるフォールバック検索',
@@ -65,14 +70,6 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     ],
   },
   // ↓ 既存のエントリ
-  {
-    version: '1.1.0',
-    date: '2026-01-20',
-    changes: [
-      '改善: 読み取れる本を増やしました',
-      '改善: 設定ページに「法的情報」と「アプリについて」を追加',
-    ],
-  },
   {
     version: '1.0.0',
     date: '2024-01-15',
@@ -126,38 +123,29 @@ changes: [
 
 ## 自動表示の仕組み
 
-1. ユーザーがログインする
+1. ユーザーが設定画面を開く
 2. アプリは現在のバージョン（`app.json` の `version`）を取得
 3. AsyncStorage に保存された「最後に確認したバージョン」と比較
 4. バージョンが異なる場合（新しいバージョン or 初回訪問）、リリースノートモーダルを自動表示
 5. 表示後、現在のバージョンを AsyncStorage に保存
 
-**注意**: モーダルは認証ページ（auth）以外のどのページでも表示されます。
-
 ## テスト方法
 
 開発中にリリースノートの自動表示をテストするには：
 
-### 方法1: キャッシュをクリアして起動
-
-```bash
-pnpm start --clear
-```
-
-### 方法2: app.json のバージョンを一時的に変更
-
-1. `app.json` の `version` を一時的に変更（例：`1.1.0` → `1.1.1`）
-2. キャッシュをクリアしてアプリを再起動：`pnpm start --clear`
-3. ログインして任意のページを開く
-4. テスト後、元に戻す
-
-### 方法3: AsyncStorage をクリア（開発用）
+### 方法1: AsyncStorage をクリア
 
 ```typescript
 // 開発用：AsyncStorage のバージョン情報をクリア
 import AsyncStorage from '@react-native-async-storage/async-storage';
 await AsyncStorage.removeItem('@readeco_last_seen_version');
 ```
+
+### 方法2: app.json のバージョンを一時的に変更
+
+1. `app.json` の `version` を一時的に変更（例：`1.0.0` → `1.0.1`）
+2. アプリを再起動して設定画面を開く
+3. テスト後、元に戻す
 
 ## 注意事項
 
@@ -170,8 +158,5 @@ await AsyncStorage.removeItem('@readeco_last_seen_version');
 
 | ファイル | 説明 |
 |---------|------|
-| `constants/release-notes.ts` | リリースノートデータ |
-| `contexts/ReleaseNotesContext.tsx` | 自動表示ロジック・モーダルUI |
-| `app/(tabs)/Settings.tsx` | 手動表示ボタン |
-| `app/_layout.tsx` | ReleaseNotesProvider の配置 |
+| `app/(tabs)/Settings.tsx` | リリースノートデータ・表示ロジック |
 | `app.json` | アプリバージョン設定 |

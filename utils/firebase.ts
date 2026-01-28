@@ -1,6 +1,6 @@
 /**
  * Firebase設定と初期化
- * 
+ *
  * 使用方法:
  * 1. Firebase Console (https://console.firebase.google.com/) でプロジェクトを作成
  * 2. Webアプリを追加してFirebase設定を取得
@@ -13,9 +13,16 @@
  *    - FIREBASE_APP_ID
  */
 
+import { Platform } from 'react-native';
 import { FirebaseApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
+import {
+  Auth,
+  getAuth,
+  initializeAuth,
+  getReactNativePersistence,
+} from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase設定
 const firebaseConfig = {
@@ -39,11 +46,25 @@ if (getApps().length === 0) {
 export const db: Firestore = getFirestore(app);
 
 // Authのインスタンスを取得
-// 注意: Firebase v11では、@react-native-async-storage/async-storageがインストールされていれば、
-// 自動的に検出されて使用されます。警告が表示される場合でも、実際には動作します。
-export const auth: Auth = getAuth(app);
+// Web と ネイティブ（iOS/Android）で初期化方法を分ける
+let authInstance: Auth;
+
+if (Platform.OS === 'web') {
+  // Web では通常の getAuth を使用
+  authInstance = getAuth(app);
+} else {
+  // ネイティブ（React Native）では AsyncStorage を永続化に利用
+  // initializeAuth は同一アプリに対して一度だけ呼び出される必要がある
+  try {
+    authInstance = initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
+  } catch {
+    // 既に initializeAuth 済みの場合は getAuth で再取得
+    authInstance = getAuth(app);
+  }
+}
+
+export const auth: Auth = authInstance;
 
 export default app;
-
-
-

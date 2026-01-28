@@ -8,9 +8,8 @@
  * 3. .envファイルに RAKUTEN_APPLICATION_ID を設定するか、
  *    searchBookByISBN関数のapplicationIdを直接設定してください
  */
-
-// Google Books API Key（Firebase API Keyと共通）
-const GOOGLE_BOOKS_API_KEY = process.env.FIREBASE_API_KEY || '';
+// Google Books API Key(Firebase API Keyと共通)
+const GOOGLE_BOOKS_API_KEY = process.env.FIREBASE_API_KEY || "";
 
 // Google Books APIのレスポンス型
 interface GoogleBooksVolumeInfo {
@@ -114,14 +113,14 @@ const MIN_REQUEST_INTERVAL = 3000; // 最小リクエスト間隔（2秒→3秒�
 function getCachedBook(isbn: string): Book | null | undefined {
   const entry = bookCache.get(isbn);
   if (!entry) return undefined;
-  
+
   const now = Date.now();
   if (now - entry.timestamp > CACHE_DURATION) {
     // キャッシュが期限切れ
     bookCache.delete(isbn);
     return undefined;
   }
-  
+
   return entry.book;
 }
 
@@ -140,7 +139,10 @@ function setCachedBook(isbn: string, book: Book | null): void {
  */
 function cleanupRequestHistory(): void {
   const now = Date.now();
-  while (requestHistory.length > 0 && now - requestHistory[0].timestamp > REQUEST_WINDOW) {
+  while (
+    requestHistory.length > 0 &&
+    now - requestHistory[0].timestamp > REQUEST_WINDOW
+  ) {
     requestHistory.shift();
   }
 }
@@ -150,10 +152,10 @@ function cleanupRequestHistory(): void {
  */
 function canMakeRequest(isbn: string): { allowed: boolean; reason?: string } {
   const now = Date.now();
-  
+
   // 古い履歴をクリーンアップ
   cleanupRequestHistory();
-  
+
   // 最小リクエスト間隔をチェック
   if (requestHistory.length > 0) {
     const lastRequest = requestHistory[requestHistory.length - 1];
@@ -165,12 +167,12 @@ function canMakeRequest(isbn: string): { allowed: boolean; reason?: string } {
       };
     }
   }
-  
+
   // ウィンドウ内のリクエスト数をチェック
   const recentRequests = requestHistory.filter(
-    (req) => now - req.timestamp <= REQUEST_WINDOW
+    (req) => now - req.timestamp <= REQUEST_WINDOW,
   );
-  
+
   if (recentRequests.length >= MAX_REQUESTS_PER_WINDOW) {
     const oldestRequest = recentRequests[0];
     const waitTime = REQUEST_WINDOW - (now - oldestRequest.timestamp);
@@ -179,7 +181,7 @@ function canMakeRequest(isbn: string): { allowed: boolean; reason?: string } {
       reason: `リクエストが多すぎます。${Math.ceil(waitTime / 1000)}秒待ってから再度お試しください。`,
     };
   }
-  
+
   return { allowed: true };
 }
 
@@ -195,7 +197,7 @@ function addToRequestHistory(isbn: string): void {
 }
 
 /**
- * Google Books APIで本を検索（フォールバック用）
+ * Google Books APIで本を検索(フォールバック用)
  * @param isbn ISBNコード
  * @returns 本の情報、見つからない場合はnull
  */
@@ -205,10 +207,10 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
     const params = new URLSearchParams({
       q: `isbn:${isbn}`,
       key: GOOGLE_BOOKS_API_KEY,
-      maxResults: '1',
+      maxResults: "1",
     });
 
-    console.log('Google Books APIリクエスト:', {
+    console.log("Google Books APIリクエスト:", {
       isbn: isbn,
       url: `${apiUrl}?q=isbn:${isbn}`,
     });
@@ -216,14 +218,14 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
     const response = await fetch(`${apiUrl}?${params.toString()}`);
 
     if (!response.ok) {
-      console.error('Google Books API error:', response.status);
+      console.error("Google Books API error:", response.status);
       return null;
     }
 
     const data: GoogleBooksApiResponse = await response.json();
 
     if (!data.items || data.items.length === 0) {
-      console.log('Google Books APIで本が見つかりませんでした:', isbn);
+      console.log("Google Books APIで本が見つかりませんでした:", isbn);
       return null;
     }
 
@@ -231,44 +233,45 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
     const volumeInfo = item.volumeInfo;
     const saleInfo = item.saleInfo;
 
-    // ISBNを取得（ISBN_13を優先）
+    // ISBNを取得(ISBN_13を優先)
     let bookIsbn = isbn;
     if (volumeInfo.industryIdentifiers) {
       const isbn13 = volumeInfo.industryIdentifiers.find(
-        (id) => id.type === 'ISBN_13'
+        (id) => id.type === "ISBN_13",
       );
       const isbn10 = volumeInfo.industryIdentifiers.find(
-        (id) => id.type === 'ISBN_10'
+        (id) => id.type === "ISBN_10",
       );
       bookIsbn = isbn13?.identifier || isbn10?.identifier || isbn;
     }
 
-    // 画像URLを取得（HTTPSに変換）
-    let imageUrl = '';
+    // 画像URLを取得(HTTPSに変換)
+    let imageUrl = "";
     if (volumeInfo.imageLinks) {
       const rawUrl =
         volumeInfo.imageLinks.medium ||
         volumeInfo.imageLinks.large ||
         volumeInfo.imageLinks.thumbnail ||
         volumeInfo.imageLinks.smallThumbnail ||
-        '';
+        "";
       // HTTPをHTTPSに変換
-      imageUrl = rawUrl.replace(/^http:/, 'https:');
+      imageUrl = rawUrl.replace(/^http:/, "https:");
     }
 
-    // 価格を取得（日本円の場合のみ）
+    // 価格を取得(日本円の場合のみ)
     let price: number | undefined;
-    if (saleInfo?.listPrice?.currencyCode === 'JPY') {
+    if (saleInfo?.listPrice?.currencyCode === "JPY") {
       price = saleInfo.listPrice.amount;
-    } else if (saleInfo?.retailPrice?.currencyCode === 'JPY') {
+    } else if (saleInfo?.retailPrice?.currencyCode === "JPY") {
       price = saleInfo.retailPrice.amount;
     }
 
     const book: Book = {
-      title: volumeInfo.title || '不明なタイトル',
-      author: volumeInfo.authors?.join(', ') || '著者不明',
+      title: volumeInfo.title || "不明なタイトル",
+      author: volumeInfo.authors?.join(", ") || "著者不明",
       isbn: bookIsbn,
-      url: volumeInfo.infoLink || `https://books.google.com/books?vid=ISBN${isbn}`,
+      url:
+        volumeInfo.infoLink || `https://books.google.com/books?vid=ISBN${isbn}`,
       imageUrl: imageUrl,
       publisher: volumeInfo.publisher,
       publishDate: volumeInfo.publishedDate,
@@ -276,10 +279,10 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
       description: volumeInfo.description,
     };
 
-    console.log('Google Books APIから本を取得:', book.title);
+    console.log("Google Books APIから本を取得:", book.title);
     return book;
   } catch (error) {
-    console.error('Google Books APIエラー:', error);
+    console.error("Google Books APIエラー:", error);
     return null;
   }
 }
@@ -291,59 +294,63 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
  */
 export async function searchBookByISBN(isbn: string): Promise<Book | null> {
   // 楽天ブックスAPIのアプリケーションID
-  const applicationId = '1098150694499447345';
+  const applicationId = "1098150694499447345";
 
   try {
     // ISBNコードを正規化
-    const normalizedISBN = isbn.replace(/[-\s]/g, '');
-    
+    const normalizedISBN = isbn.replace(/[-\s]/g, "");
+
     // ISBNが空でないかチェック
     if (!normalizedISBN || normalizedISBN.length === 0) {
-      throw new Error('ISBNコードが空です');
+      throw new Error("ISBNコードが空です");
     }
-    
+
     // ISBNの形式をチェック（10桁または13桁の数字）
     if (!/^\d{10}(\d{3})?$/.test(normalizedISBN)) {
       throw new Error(`無効なISBN形式です: ${normalizedISBN}`);
     }
-    
+
     // キャッシュをチェック
     const cachedBook = getCachedBook(normalizedISBN);
     if (cachedBook !== undefined) {
-      console.log('キャッシュから本の情報を取得:', normalizedISBN);
+      console.log("キャッシュから本の情報を取得:", normalizedISBN);
       // キャッシュから取得した場合でも、リクエスト履歴に追加して連続リクエストを防ぐ
       // （実際のAPIリクエストは送信しないが、リクエスト間隔の制御のため）
       addToRequestHistory(normalizedISBN);
       return cachedBook;
     }
-    
+
     // リクエスト制限をチェック
     const canRequest = canMakeRequest(normalizedISBN);
     if (!canRequest.allowed) {
-      throw new Error(canRequest.reason || 'リクエストが多すぎます。しばらく待ってから再度お試しください。');
+      throw new Error(
+        canRequest.reason ||
+          "リクエストが多すぎます。しばらく待ってから再度お試しください。",
+      );
     }
-    
+
     // リクエスト履歴に追加
     addToRequestHistory(normalizedISBN);
-    
+
     // 楽天ブックスAPIのエンドポイント
-    const apiUrl = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404';
-    
+    const apiUrl =
+      "https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404";
+
     const params = new URLSearchParams({
       applicationId: applicationId,
-      format: 'json',
+      format: "json",
       isbnjan: normalizedISBN, // 楽天APIではisbnjanパラメータを使用
-      hits: '1',
-      sort: 'standard',
+      hits: "1",
+      sort: "standard",
     });
-    
-    console.log('楽天APIリクエスト:', {
+
+    console.log("楽天APIリクエスト:", {
       isbn: normalizedISBN,
       url: `${apiUrl}?${params.toString()}`,
     });
 
     const response = await fetch(`${apiUrl}?${params.toString()}`);
-    
+
     if (!response.ok) {
       // エラーレスポンスの詳細を取得
       let errorMessage = `API request failed: ${response.status}`;
@@ -358,24 +365,28 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
         }
       } catch (e) {
         // JSONパースに失敗した場合はデフォルトメッセージを使用
-        console.warn('エラーレスポンスのパースに失敗:', e);
+        console.warn("エラーレスポンスのパースに失敗:", e);
       }
-      
+
       // 429エラー（レート制限）の場合は特別なメッセージ
       if (response.status === 429) {
-        throw new Error('リクエストが多すぎます。しばらく待ってから再度お試しください。');
+        throw new Error(
+          "リクエストが多すぎます。しばらく待ってから再度お試しください。",
+        );
       }
-      
+
       // 400エラーの場合は詳細を表示
       if (response.status === 400) {
-        console.error('楽天API 400エラー詳細:', {
+        console.error("楽天API 400エラー詳細:", {
           isbn: normalizedISBN,
           url: `${apiUrl}?${params.toString()}`,
           errorMessage,
         });
-        throw new Error(`リクエストエラー: ${errorMessage}。ISBNコード「${normalizedISBN}」が正しいか確認してください。`);
+        throw new Error(
+          `リクエストエラー: ${errorMessage}。ISBNコード「${normalizedISBN}」が正しいか確認してください。`,
+        );
       }
-      
+
       throw new Error(errorMessage);
     }
 
@@ -383,7 +394,10 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
 
     if (!data.Items || data.Items.length === 0) {
       // 楽天APIで見つからない場合、Google Books APIにフォールバック
-      console.log('楽天APIで本が見つかりませんでした。Google Books APIで検索します:', normalizedISBN);
+      console.log(
+        "楽天APIで本が見つかりませんでした。Google Books APIで検索します:",
+        normalizedISBN,
+      );
       const googleBook = await searchBookByISBNFromGoogle(normalizedISBN);
       if (googleBook) {
         // Google Booksから取得した本をキャッシュに保存
@@ -399,31 +413,37 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
 
     const book: Book = {
       title: item.title,
-      author: item.author || '著者不明',
+      author: item.author || "著者不明",
       isbn: item.isbn,
       url: item.itemUrl,
-      imageUrl: item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || '',
+      imageUrl:
+        item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || "",
       publisher: item.publisherName,
       publishDate: item.salesDate,
       price: item.itemPrice,
       description: item.itemCaption, // あらすじ
     };
-    
+
     // キャッシュに保存
     setCachedBook(normalizedISBN, book);
-    
+
     return book;
   } catch (error) {
     // エラーが発生した場合でも、nullをキャッシュして短時間の再リクエストを防ぐ
-    const normalizedISBN = isbn.replace(/[-\s]/g, '');
+    const normalizedISBN = isbn.replace(/[-\s]/g, "");
     if (normalizedISBN && /^\d{10}(\d{3})?$/.test(normalizedISBN)) {
       // エラーがレート制限関連でない場合のみキャッシュ（レート制限の場合は再試行を許可）
-      if (!(error instanceof Error && error.message.includes('リクエストが多すぎます'))) {
+      if (
+        !(
+          error instanceof Error &&
+          error.message.includes("リクエストが多すぎます")
+        )
+      ) {
         setCachedBook(normalizedISBN, null);
       }
     }
-    
-    console.error('Error fetching book from Rakuten API:', error);
+
+    console.error("Error fetching book from Rakuten API:", error);
     throw error;
   }
 }
@@ -438,28 +458,29 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
 export async function searchBooksByQuery(
   query: string,
   maxResults: number = 10,
-  page: number = 1
+  page: number = 1,
 ): Promise<Book[]> {
   // 楽天ブックスAPIのアプリケーションID
-  const applicationId = '1098150694499447345';
+  const applicationId = "1098150694499447345";
 
   try {
-    const apiUrl = 'https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404';
-    
+    const apiUrl =
+      "https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404";
+
     // 最大30件に制限（楽天ブックスAPIの仕様）
     const hits = Math.min(maxResults, 30);
-    
+
     const params = new URLSearchParams({
       applicationId: applicationId,
-      format: 'json',
+      format: "json",
       keyword: query,
       hits: hits.toString(),
       page: page.toString(),
-      sort: 'standard',
+      sort: "standard",
     });
 
     const response = await fetch(`${apiUrl}?${params.toString()}`);
-    
+
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
     }
@@ -472,17 +493,18 @@ export async function searchBooksByQuery(
 
     return data.Items.map(({ Item }) => ({
       title: Item.title,
-      author: Item.author || '著者不明',
+      author: Item.author || "著者不明",
       isbn: Item.isbn,
       url: Item.itemUrl,
-      imageUrl: Item.largeImageUrl || Item.mediumImageUrl || Item.smallImageUrl || '',
+      imageUrl:
+        Item.largeImageUrl || Item.mediumImageUrl || Item.smallImageUrl || "",
       publisher: Item.publisherName,
       publishDate: Item.salesDate,
       price: Item.itemPrice,
       description: Item.itemCaption, // あらすじ
     }));
   } catch (error) {
-    console.error('Error fetching books from Rakuten API:', error);
+    console.error("Error fetching books from Rakuten API:", error);
     throw error;
   }
 }
@@ -495,16 +517,16 @@ export async function searchBooksByQuery(
  */
 export async function searchBooksByAuthor(
   author: string,
-  maxResults: number = 30
+  maxResults: number = 30,
 ): Promise<Book[]> {
   try {
     // まずキーワード検索で著者名を含む本を取得
     const books = await searchBooksByQuery(author, maxResults);
-    
+
     // 著者名が完全一致するもののみをフィルタリング
-    return books.filter(book => book.author === author);
+    return books.filter((book) => book.author === author);
   } catch (error) {
-    console.error('Error fetching books by author:', error);
+    console.error("Error fetching books by author:", error);
     throw error;
   }
 }

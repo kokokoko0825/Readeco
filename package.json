@@ -28,6 +28,7 @@
     "@zxing/library": "^0.21.0",
     "expo": "~54.0.27",
     "expo-auth-session": "~6.1.5",
+    "expo-camera": "~17.0.10",
     "expo-cli": "^6.3.10",
     "expo-clipboard": "~7.0.0",
     "expo-constants": "~18.0.11",
