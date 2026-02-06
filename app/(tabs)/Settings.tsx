@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+import { APP_VERSION } from '@/constants/release-notes';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -641,9 +641,7 @@ export default function SettingsScreen() {
 
         {/* アプリ情報フッター */}
         <View style={styles.appInfoFooter}>
-          <ThemedText style={styles.appVersion}>
-            Readeco v{Constants.expoConfig?.version || '1.0.0'}
-          </ThemedText>
+          <ThemedText style={styles.appVersion}>Readeco v{APP_VERSION}</ThemedText>
           <ThemedText style={styles.appUserId}>
             User ID: {userId || ''}
           </ThemedText>
