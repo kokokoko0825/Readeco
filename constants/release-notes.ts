@@ -23,11 +23,12 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    version: '1.1.1',
-    date: '2026-01-25',
+    version: '1.1.2',
+    date: '2026-02-06',
     changes: [
-      '改善: 問い合わせ先を`support@readeco.org`に統一しました。',
-      'またそれに伴い、設定ページに問い合わせボタンを作成しました。',
+      '改善: ISBN検索の動作を安定化しました。',
+      '改善: iOS/Android/Webでの検索の安定性を向上しました。',
+      'バグ修正: WebでISBN検索が失敗する問題を修正しました。',
     ],
   },
 ];

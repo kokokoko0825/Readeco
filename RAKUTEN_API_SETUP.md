@@ -55,31 +55,19 @@ https://example.com/readeco
 
 ## 2. アプリケーションIDの設定
 
-取得したアプリケーションIDを、以下のいずれかの方法で設定します：
-
-### 方法1: 環境変数を使用（推奨）
+取得したアプリケーションIDを、`.env` に設定します（Expo Web/iOS/Android では `EXPO_PUBLIC_` が必須です）：
 
 1. プロジェクトのルートディレクトリに `.env` ファイルを作成します：
 
 ```env
+EXPO_PUBLIC_RAKUTEN_APPLICATION_ID=YOUR_APPLICATION_ID_HERE
+# サーバー実行時のみ必要（Expo以外で使う場合）
 RAKUTEN_APPLICATION_ID=YOUR_APPLICATION_ID_HERE
 ```
 
-2. `utils/rakuten-api.ts` を以下のように修正します：
-
-```typescript
-const applicationId = process.env.RAKUTEN_APPLICATION_ID || 'YOUR_APPLICATION_ID';
-```
+2. `utils/rakuten-api.ts` は `process.env.EXPO_PUBLIC_RAKUTEN_APPLICATION_ID` を優先的に参照します。
 
 **注意：** `.env` ファイルは `.gitignore` に追加して、Gitにコミットしないようにしてください。
-
-### 方法2: 直接コードに記述（開発用）
-
-`utils/rakuten-api.ts` ファイルの `searchBookByISBN` 関数内で、直接アプリケーションIDを設定します：
-
-```typescript
-const applicationId = 'YOUR_APPLICATION_ID_HERE';
-```
 
 ## 3. APIの使用制限
 

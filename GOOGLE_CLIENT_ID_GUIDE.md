@@ -89,7 +89,7 @@ keytool -list -v -keystore %USERPROFILE%\.android\debug.keystore -alias androidd
 
 ```env
 # Web Client ID（Firebase Consoleから取得）
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=1072707265240-17khjslkmmqgl0v7022chdj3ttodgdi8.apps.googleusercontent.com
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=YOUR_WEB_CLIENT_ID_HERE
 
 # iOS Client ID（Google Cloud Consoleから取得）
 EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=YOUR_IOS_CLIENT_ID_HERE

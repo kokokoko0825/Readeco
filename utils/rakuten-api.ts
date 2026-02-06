@@ -5,11 +5,27 @@
  * 使用方法:
  * 1. https://webservice.rakuten.co.jp/app/create でアプリを登録
  * 2. アプリ登録後、アプリケーションIDを取得
- * 3. .envファイルに RAKUTEN_APPLICATION_ID を設定するか、
- *    searchBookByISBN関数のapplicationIdを直接設定してください
+ * 3. .envファイルに EXPO_PUBLIC_RAKUTEN_APPLICATION_ID を設定してください
+ *    （サーバー実行時は RAKUTEN_APPLICATION_ID でも可）
  */
 // Google Books API Key(Firebase API Keyと共通)
-const GOOGLE_BOOKS_API_KEY = process.env.FIREBASE_API_KEY || "";
+const GOOGLE_BOOKS_API_KEY =
+  process.env.EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY ??
+  process.env.EXPO_PUBLIC_FIREBASE_API_KEY ??
+  process.env.FIREBASE_API_KEY ??
+  "";
+
+const getRakutenApplicationId = (): string => {
+  const applicationId =
+    process.env.EXPO_PUBLIC_RAKUTEN_APPLICATION_ID ??
+    process.env.RAKUTEN_APPLICATION_ID;
+  if (!applicationId) {
+    throw new Error(
+      "楽天APIのアプリケーションIDが未設定です。Expo(Web/iOS/Android)では EXPO_PUBLIC_RAKUTEN_APPLICATION_ID を .env に設定してください。",
+    );
+  }
+  return applicationId;
+};
 
 // Google Books APIのレスポンス型
 interface GoogleBooksVolumeInfo {
@@ -206,9 +222,11 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
     const apiUrl = `https://www.googleapis.com/books/v1/volumes`;
     const params = new URLSearchParams({
       q: `isbn:${isbn}`,
-      key: GOOGLE_BOOKS_API_KEY,
       maxResults: "1",
     });
+    if (GOOGLE_BOOKS_API_KEY) {
+      params.set("key", GOOGLE_BOOKS_API_KEY);
+    }
 
     console.log("Google Books APIリクエスト:", {
       isbn: isbn,
@@ -218,8 +236,12 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
     const response = await fetch(`${apiUrl}?${params.toString()}`);
 
     if (!response.ok) {
-      console.error("Google Books API error:", response.status);
-      return null;
+      const status = response.status;
+      const message =
+        GOOGLE_BOOKS_API_KEY.length > 0
+          ? `Google Books API request failed: ${status}`
+          : "Google Books APIキーが未設定です。EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY または EXPO_PUBLIC_FIREBASE_API_KEY を .env に設定してください。";
+      throw new Error(message);
     }
 
     const data: GoogleBooksApiResponse = await response.json();
@@ -283,7 +305,7 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
     return book;
   } catch (error) {
     console.error("Google Books APIエラー:", error);
-    return null;
+    throw error;
   }
 }
 
@@ -293,10 +315,10 @@ async function searchBookByISBNFromGoogle(isbn: string): Promise<Book | null> {
  * @returns 本の情報、見つからない場合はnull
  */
 export async function searchBookByISBN(isbn: string): Promise<Book | null> {
-  // 楽天ブックスAPIのアプリケーションID
-  const applicationId = "1098150694499447345";
-
   try {
+    // 楽天ブックスAPIのアプリケーションID
+    const applicationId = getRakutenApplicationId();
+
     // ISBNコードを正規化
     const normalizedISBN = isbn.replace(/[-\s]/g, "");
 
@@ -429,20 +451,6 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
 
     return book;
   } catch (error) {
-    // エラーが発生した場合でも、nullをキャッシュして短時間の再リクエストを防ぐ
-    const normalizedISBN = isbn.replace(/[-\s]/g, "");
-    if (normalizedISBN && /^\d{10}(\d{3})?$/.test(normalizedISBN)) {
-      // エラーがレート制限関連でない場合のみキャッシュ（レート制限の場合は再試行を許可）
-      if (
-        !(
-          error instanceof Error &&
-          error.message.includes("リクエストが多すぎます")
-        )
-      ) {
-        setCachedBook(normalizedISBN, null);
-      }
-    }
-
     console.error("Error fetching book from Rakuten API:", error);
     throw error;
   }
@@ -461,7 +469,7 @@ export async function searchBooksByQuery(
   page: number = 1,
 ): Promise<Book[]> {
   // 楽天ブックスAPIのアプリケーションID
-  const applicationId = "1098150694499447345";
+  const applicationId = getRakutenApplicationId();
 
   try {
     const apiUrl =
