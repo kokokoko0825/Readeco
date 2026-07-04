@@ -30,15 +30,6 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       '改善: 楽天APIの新認証方式（accessKey）に対応しました。',
     ],
   },
-  {
-    version: '1.1.2',
-    date: '2026-02-06',
-    changes: [
-      '改善: ISBN検索の動作を安定化しました。',
-      '改善: iOS/Android/Webでの検索の安定性を向上しました。',
-      'バグ修正: WebでISBN検索が失敗する問題を修正しました。',
-    ],
-  },
 ];
 
 /**
