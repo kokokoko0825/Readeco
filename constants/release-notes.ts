@@ -23,6 +23,14 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.3',
+    date: '2026-07-04',
+    changes: [
+      'バグ修正: 楽天ブックスAPIの新エンドポイントに対応し、本の検索・新刊情報の取得を復旧しました。',
+      '改善: 楽天APIの新認証方式（accessKey）に対応しました。',
+    ],
+  },
+  {
     version: '1.1.2',
     date: '2026-02-06',
     changes: [
