@@ -4,9 +4,13 @@
  *
  * 使用方法:
  * 1. https://webservice.rakuten.co.jp/app/create でアプリを登録
- * 2. アプリ登録後、アプリケーションIDを取得
- * 3. .envファイルに EXPO_PUBLIC_RAKUTEN_APPLICATION_ID を設定してください
- *    （サーバー実行時は RAKUTEN_APPLICATION_ID でも可）
+ * 2. アプリ登録後、アプリケーションIDとアクセスキーを取得
+ * 3. .envファイルに以下を設定してください:
+ *    - EXPO_PUBLIC_RAKUTEN_APPLICATION_ID: アプリケーションID
+ *    - EXPO_PUBLIC_RAKUTEN_ACCESS_KEY: アクセスキー（2026年2月以降必須）
+ *
+ * 注意: 2026年5月13日以降、新APIへの移行が必須となりました。
+ *       エンドポイントが openapi.rakuten.co.jp に変更され、accessKeyが必須です。
  */
 // Google Books API Key(Firebase API Keyと共通)
 const GOOGLE_BOOKS_API_KEY =
@@ -21,10 +25,22 @@ const getRakutenApplicationId = (): string => {
     process.env.RAKUTEN_APPLICATION_ID;
   if (!applicationId) {
     throw new Error(
-      "楽天APIのアプリケーションIDが未設定です。Expo(Web/iOS/Android)では EXPO_PUBLIC_RAKUTEN_APPLICATION_ID を .env に設定してください。",
+      "楽天APIのアプリケーションIDが未設定です。EXPO_PUBLIC_RAKUTEN_APPLICATION_ID を .env に設定してください。",
     );
   }
   return applicationId;
+};
+
+const getRakutenAccessKey = (): string => {
+  const accessKey =
+    process.env.EXPO_PUBLIC_RAKUTEN_ACCESS_KEY ??
+    process.env.RAKUTEN_ACCESS_KEY;
+  if (!accessKey) {
+    throw new Error(
+      "楽天APIのアクセスキーが未設定です。EXPO_PUBLIC_RAKUTEN_ACCESS_KEY を .env に設定してください。",
+    );
+  }
+  return accessKey;
 };
 
 // Google Books APIのレスポンス型
@@ -354,12 +370,16 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
     // リクエスト履歴に追加
     addToRequestHistory(normalizedISBN);
 
-    // 楽天ブックスAPIのエンドポイント
+    // 楽天ブックスAPIのエンドポイント（2026年5月以降の新ドメイン）
     const apiUrl =
-      "https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404";
+      "https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404";
+
+    // アクセスキーを取得（2026年2月以降必須）
+    const accessKey = getRakutenAccessKey();
 
     const params = new URLSearchParams({
       applicationId: applicationId,
+      accessKey: accessKey,
       format: "json",
       isbnjan: normalizedISBN, // 楽天APIではisbnjanパラメータを使用
       hits: "1",
@@ -470,16 +490,20 @@ export async function searchBooksByQuery(
 ): Promise<Book[]> {
   // 楽天ブックスAPIのアプリケーションID
   const applicationId = getRakutenApplicationId();
+  // アクセスキー（2026年2月以降必須）
+  const accessKey = getRakutenAccessKey();
 
   try {
+    // 楽天ブックスAPIのエンドポイント（2026年5月以降の新ドメイン）
     const apiUrl =
-      "https://app.rakuten.co.jp/services/api/BooksTotal/Search/20170404";
+      "https://openapi.rakuten.co.jp/services/api/BooksTotal/Search/20170404";
 
     // 最大30件に制限（楽天ブックスAPIの仕様）
     const hits = Math.min(maxResults, 30);
 
     const params = new URLSearchParams({
       applicationId: applicationId,
+      accessKey: accessKey,
       format: "json",
       keyword: query,
       hits: hits.toString(),
