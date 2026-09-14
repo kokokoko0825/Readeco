@@ -47,6 +47,34 @@ interface AuthProviderProps {
 let backgroundFetchCache: PreloadedNewBooksData | null = null;
 let isBackgroundFetching = false;
 
+function normalizeIsbn(isbn?: string): string {
+  return isbn ? isbn.replace(/[-\s]/g, '') : '';
+}
+
+/**
+ * 新刊データから、ユーザーが既に登録済みの本（ISBN一致）を取り除く
+ */
+function filterOutOwnedBooks(
+  data: PreloadedNewBooksData,
+  userIsbns: Set<string>
+): PreloadedNewBooksData {
+  const availableBooks = data.availableBooks.filter(
+    (book) => !userIsbns.has(normalizeIsbn(book.isbn))
+  );
+  const preorderBooks = data.preorderBooks.filter(
+    (book) => !userIsbns.has(normalizeIsbn(book.isbn))
+  );
+
+  if (
+    availableBooks.length === data.availableBooks.length &&
+    preorderBooks.length === data.preorderBooks.length
+  ) {
+    return data;
+  }
+
+  return { ...data, availableBooks, preorderBooks };
+}
+
 /**
  * 発売日をフォーマット
  */
@@ -263,6 +291,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [preloadedNewBooksData, setPreloadedNewBooksData] = useState<PreloadedNewBooksData | null>(null);
   const [isPreloadingBooks, setIsPreloadingBooks] = useState(false);
   const userBooksRef = useRef<BookData[]>([]);
+  const previousUserIsbnsRef = useRef<Set<string>>(new Set());
   const unsubscribeUserBooksRef = useRef<(() => void) | null>(null);
   const preloadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -309,7 +338,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           unsubscribeUserBooksRef.current = subscribeUserBooks(user.uid, (books) => {
             userBooksRef.current = books;
-            
+
+            const userIsbns = new Set(
+              books.map((b) => normalizeIsbn(b.isbn)).filter((isbn) => isbn.length > 0)
+            );
+
+            // 前回の一覧と比べて、登録解除された本があるかを確認する
+            const hasRemovedBook = Array.from(previousUserIsbnsRef.current).some(
+              (isbn) => !userIsbns.has(isbn)
+            );
+            previousUserIsbnsRef.current = userIsbns;
+
+            if (hasRemovedBook) {
+              // 除外した本の情報はもう保持していないため、キャッシュを無効化して
+              // 次のプリロードで実際にAPIを叩き直し、再表示されるようにする
+              backgroundFetchCache = null;
+            } else {
+              // 登録済みの本を新刊リストから即座に除外（24hキャッシュに関わらず反映）
+              if (backgroundFetchCache) {
+                backgroundFetchCache = filterOutOwnedBooks(backgroundFetchCache, userIsbns);
+              }
+              setPreloadedNewBooksData((prev) =>
+                prev ? filterOutOwnedBooks(prev, userIsbns) : prev
+              );
+            }
+
             // バックグラウンドプリロード開始（デバウンス：500ms）
             if (preloadTimeoutRef.current) {
               clearTimeout(preloadTimeoutRef.current);
@@ -334,6 +387,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
           unsubscribeUserBooksRef.current();
           unsubscribeUserBooksRef.current = null;
         }
+        // 別アカウントへの切り替え時にキャッシュが混ざらないようにリセットする
+        previousUserIsbnsRef.current = new Set();
+        backgroundFetchCache = null;
         setPreloadedNewBooksData(null);
         setIsPreloadingBooks(false);
       }
