@@ -23,6 +23,14 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.4',
+    date: '2026-09-14',
+    changes: [
+      'バグ修正: 本を登録した直後、新刊ページにその本が残り続ける問題を修正しました。',
+      'バグ修正: 本の登録を解除した際、新刊ページの内容が正しく更新されるよう修正しました。',
+    ],
+  },
+  {
     version: '1.1.3',
     date: '2026-07-04',
     changes: [
