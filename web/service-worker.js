@@ -1,4 +1,4 @@
-const CACHE_NAME = 'readeco-pwa-v8';
+const CACHE_NAME = 'readeco-pwa-v9';
 const OFFLINE_ASSETS = [
   '/',
   '/manifest.json',
