@@ -4,14 +4,13 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
 import { Colors } from '@/constants/theme';
-import { RELEASE_NOTES } from '@/constants/release-notes';
+import { APP_VERSION, getReleaseNoteByVersion } from '@/constants/release-notes';
 import { useAuth } from '@/contexts/AuthContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -41,6 +40,7 @@ export function ReleaseNotesProvider({ children }: ReleaseNotesProviderProps) {
   const { user } = useAuth();
   const [visible, setVisible] = useState(false);
   const [hasChecked, setHasChecked] = useState(false);
+  const currentRelease = getReleaseNoteByVersion(APP_VERSION);
 
   const isDark = colorScheme === 'dark';
   const cardBg = isDark ? '#231E19' : '#FCFAF2';
@@ -64,12 +64,7 @@ export function ReleaseNotesProvider({ children }: ReleaseNotesProviderProps) {
 
     const checkNewVersion = async () => {
       try {
-        // バージョンの取得（複数の方法を試行）
-        const currentVersion =
-          Constants.expoConfig?.version ||
-          Constants.manifest?.version ||
-          (Constants.manifest2?.extra?.expoClient as { version?: string })?.version ||
-          '1.0.0';
+        const currentVersion = APP_VERSION;
         const lastSeenVersion = await AsyncStorage.getItem(LAST_SEEN_VERSION_KEY);
 
         // デバッグ用ログ（開発時のみ）
@@ -79,7 +74,7 @@ export function ReleaseNotesProvider({ children }: ReleaseNotesProviderProps) {
         }
 
         // 初回訪問または新しいバージョンの場合
-        if (!lastSeenVersion || lastSeenVersion !== currentVersion) {
+        if (currentRelease && lastSeenVersion !== currentVersion) {
           if (__DEV__) {
             console.log('[ReleaseNotes] Showing release notes modal');
           }
@@ -99,7 +94,7 @@ export function ReleaseNotesProvider({ children }: ReleaseNotesProviderProps) {
     };
 
     checkNewVersion();
-  }, [user, hasChecked]);
+  }, [user, hasChecked, currentRelease]);
 
   return (
     <ReleaseNotesContext.Provider value={{ showReleaseNotes }}>
@@ -127,8 +122,8 @@ export function ReleaseNotesProvider({ children }: ReleaseNotesProviderProps) {
                 </Pressable>
               </View>
               <ScrollView style={styles.modalBody}>
-                {RELEASE_NOTES.map((release, index) => (
-                  <View key={index} style={styles.releaseItem}>
+                {(currentRelease ? [currentRelease] : []).map((release) => (
+                  <View key={release.version} style={styles.releaseItem}>
                     <View style={styles.releaseHeader}>
                       <ThemedText style={styles.releaseVersion}>
                         v{release.version}
