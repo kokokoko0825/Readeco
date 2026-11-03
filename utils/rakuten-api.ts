@@ -117,6 +117,24 @@ export interface Book {
   description?: string; // あらすじ
 }
 
+/**
+ * 楽天APIの商品データをBookに変換
+ */
+function toBook(item: RakutenBookItem): Book {
+  return {
+    title: item.title,
+    author: item.author || "著者不明",
+    isbn: item.isbn,
+    url: item.itemUrl,
+    imageUrl:
+      item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || "",
+    publisher: item.publisherName,
+    publishDate: item.salesDate,
+    price: item.itemPrice,
+    description: item.itemCaption, // あらすじ
+  };
+}
+
 // キャッシュ用のインターフェース
 interface CacheEntry {
   book: Book | null;
@@ -451,20 +469,7 @@ export async function searchBookByISBN(isbn: string): Promise<Book | null> {
       return null;
     }
 
-    const item = data.Items[0].Item;
-
-    const book: Book = {
-      title: item.title,
-      author: item.author || "著者不明",
-      isbn: item.isbn,
-      url: item.itemUrl,
-      imageUrl:
-        item.largeImageUrl || item.mediumImageUrl || item.smallImageUrl || "",
-      publisher: item.publisherName,
-      publishDate: item.salesDate,
-      price: item.itemPrice,
-      description: item.itemCaption, // あらすじ
-    };
+    const book = toBook(data.Items[0].Item);
 
     // キャッシュに保存
     setCachedBook(normalizedISBN, book);
@@ -523,18 +528,7 @@ export async function searchBooksByQuery(
       return [];
     }
 
-    return data.Items.map(({ Item }) => ({
-      title: Item.title,
-      author: Item.author || "著者不明",
-      isbn: Item.isbn,
-      url: Item.itemUrl,
-      imageUrl:
-        Item.largeImageUrl || Item.mediumImageUrl || Item.smallImageUrl || "",
-      publisher: Item.publisherName,
-      publishDate: Item.salesDate,
-      price: Item.itemPrice,
-      description: Item.itemCaption, // あらすじ
-    }));
+    return data.Items.map(({ Item }) => toBook(Item));
   } catch (error) {
     console.error("Error fetching books from Rakuten API:", error);
     throw error;
@@ -542,21 +536,58 @@ export async function searchBooksByQuery(
 }
 
 /**
- * 著者名で本を検索（著者名完全一致）
+ * 著者名を比較用に正規化（半角・全角スペースを除去）
+ * 例: "東野 圭吾" → "東野圭吾"
+ */
+function normalizeAuthor(author: string): string {
+  return author.replace(/[\s\u3000]/g, "");
+}
+
+/**
+ * 著者名で本を検索（著者名完全一致、発売日の新しい順）
  * @param author 著者名
  * @param maxResults 最大結果数（デフォルト: 30）
- * @returns 本の情報の配列（著者名が完全一致するもののみ）
+ * @returns 本の情報の配列（スペースを除いた著者名が完全一致するもののみ）
  */
 export async function searchBooksByAuthor(
   author: string,
   maxResults: number = 30,
 ): Promise<Book[]> {
-  try {
-    // まずキーワード検索で著者名を含む本を取得
-    const books = await searchBooksByQuery(author, maxResults);
+  const applicationId = getRakutenApplicationId();
+  const accessKey = getRakutenAccessKey();
 
-    // 著者名が完全一致するもののみをフィルタリング
-    return books.filter((book) => book.author === author);
+  try {
+    // 書籍検索APIの著者名パラメータで検索する。
+    // キーワード検索の標準順だと人気の旧作が上位を占め、新刊が30件から押し出されるため、
+    // 発売日の新しい順で取得する
+    const apiUrl =
+      "https://openapi.rakuten.co.jp/services/api/BooksBook/Search/20170404";
+
+    const params = new URLSearchParams({
+      applicationId: applicationId,
+      accessKey: accessKey,
+      format: "json",
+      author: author,
+      hits: Math.min(maxResults, 30).toString(),
+      sort: "-releaseDate",
+    });
+
+    const response = await fetch(`${apiUrl}?${params.toString()}`);
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data: RakutenApiResponse = await response.json();
+
+    if (!data.Items || data.Items.length === 0) {
+      return [];
+    }
+
+    const normalizedAuthor = normalizeAuthor(author);
+    return data.Items.map(({ Item }) => toBook(Item)).filter(
+      (book) => normalizeAuthor(book.author) === normalizedAuthor,
+    );
   } catch (error) {
     console.error("Error fetching books by author:", error);
     throw error;
