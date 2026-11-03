@@ -9,7 +9,7 @@
  * 自動的にリリースノートが表示されます。
  */
 
-import Constants from 'expo-constants';
+import appConfig from '../app.json';
 
 export interface ReleaseNote {
   version: string;
@@ -23,6 +23,44 @@ export interface ReleaseNote {
  */
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.1.8',
+    date: '2026-11-03',
+    changes: [
+      '改善: 途中で購入をやめたシリーズ（最新巻の発売から60日以上未購入）を、新刊ページに表示しないようにしました。',
+    ],
+  },
+  {
+    version: '1.1.7',
+    date: '2026-11-03',
+    changes: [
+      '改善: 新刊ページに全巻セットが表示されないようにしました。',
+    ],
+  },
+  {
+    version: '1.1.6',
+    date: '2026-11-03',
+    changes: [
+      '修正: 複数の著者による漫画などが、予約販売中に表示されなくなっていた問題を修正しました。',
+    ],
+  },
+  {
+    version: '1.1.5',
+    date: '2026-11-03',
+    changes: [
+      '修正: 新刊ページで、発売日を迎えた新刊が「発売中」に表示されない場合がある問題を修正しました。',
+      '改善: 新刊を発売日の新しい順に探すようにし、著者名のスペースの有無による取りこぼしを減らしました。',
+    ],
+  },
+  {
+    version: '1.1.4',
+    date: '2026-10-14',
+    changes: [
+      '修正: ホームで本を長押しした際に、画像の保存・共有メニューが表示される問題を修正しました。',
+      '修正: 本を長押しした際に、テキスト選択の青いハンドルが表示される問題を修正しました。',
+      '本を長押ししてから別の本をタップすると、グループにまとめられます。',
+    ],
+  },
+  {
     version: '1.1.3',
     date: '2026-07-04',
     changes: [
@@ -35,7 +73,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
 /**
  * 現在のアプリバージョン（app.json から自動取得）
  */
-export const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
+export const APP_VERSION = appConfig.expo.version;
 
 /**
  * 最新のリリースノートバージョン

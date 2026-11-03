@@ -5,18 +5,15 @@
 import { auth } from '@/utils/firebase';
 import { subscribeUserBooks, type BookData } from '@/utils/firebase-books';
 import { getUserSettings, setUserSettings } from '@/utils/firebase-users';
-import { searchBooksByAuthor, type Book } from '@/utils/rakuten-api';
+import { classifyAuthorBooks, parseSalesDate, type NewBook } from '@/utils/new-books';
+import { searchBooksByAuthor } from '@/utils/rakuten-api';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
 
 interface PreloadedNewBooksData {
-  availableBooks: BookWithFormatted[];
-  preorderBooks: BookWithFormatted[];
+  availableBooks: NewBook[];
+  preorderBooks: NewBook[];
   lastUpdated: number;
-}
-
-interface BookWithFormatted extends Book {
-  publishDateFormatted?: string;
 }
 
 interface AuthContextType {
@@ -48,55 +45,6 @@ let backgroundFetchCache: PreloadedNewBooksData | null = null;
 let isBackgroundFetching = false;
 
 /**
- * 発売日をフォーマット
- */
-function formatPublishDate(salesDate?: string): string {
-  if (!salesDate) return '';
-  
-  const date = parseSalesDate(salesDate);
-  if (!date) return salesDate;
-
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  
-  return `${year}年${month}月${day}日`;
-}
-
-/**
- * 楽天APIのsalesDateをDateオブジェクトに変換
- */
-function parseSalesDate(salesDate?: string): Date | null {
-  if (!salesDate) return null;
-
-  try {
-    const match1 = salesDate.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
-    if (match1) {
-      const year = parseInt(match1[1], 10);
-      const month = parseInt(match1[2], 10) - 1;
-      const day = parseInt(match1[3], 10);
-      return new Date(year, month, day);
-    }
-
-    if (/^\d{8}$/.test(salesDate)) {
-      const year = parseInt(salesDate.substring(0, 4), 10);
-      const month = parseInt(salesDate.substring(4, 6), 10) - 1;
-      const day = parseInt(salesDate.substring(6, 8), 10);
-      return new Date(year, month, day);
-    }
-
-    const date = new Date(salesDate);
-    if (!isNaN(date.getTime())) {
-      return date;
-    }
-  } catch (error) {
-    console.error('Error parsing sales date:', salesDate, error);
-  }
-
-  return null;
-}
-
-/**
  * バックグラウンドで新刊データを取得
  */
 async function preloadNewBooksData(userBooks: BookData[]): Promise<PreloadedNewBooksData | null> {
@@ -125,81 +73,21 @@ async function preloadNewBooksData(userBooks: BookData[]): Promise<PreloadedNewB
       return null;
     }
 
-    const userIsbns = new Set<string>();
-    userBooks.forEach((book) => {
-      if (book.isbn) {
-        userIsbns.add(book.isbn.replace(/[-\s]/g, ''));
-      }
-    });
-
-    const newestPublishDateByAuthor = new Map<string, Date>();
-    userBooks.forEach((book) => {
-      if (!book.author || !book.author.trim()) return;
-      
-      const author = book.author.trim();
-      const publishDate = parseSalesDate(book.publishDate);
-      
-      if (publishDate) {
-        const currentNewest = newestPublishDateByAuthor.get(author);
-        if (!currentNewest || publishDate > currentNewest) {
-          newestPublishDateByAuthor.set(author, publishDate);
-        }
-      }
-    });
-
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    // 2年前の日付を計算
-    const twoYearsAgo = new Date(today);
-    twoYearsAgo.setFullYear(today.getFullYear() - 2);
 
-    const allAvailableBooks: BookWithFormatted[] = [];
-    const allPreorderBooks: BookWithFormatted[] = [];
+    const allAvailableBooks: NewBook[] = [];
+    const allPreorderBooks: NewBook[] = [];
 
     // バックグラウンドプリロードの最適化設定
     const BATCH_SIZE = 3; // 同時に検索する著者数（並列度を上げる）
     const BATCH_DELAY = 1000; // バッチ間の待機時間（1秒に短縮）
 
-    const searchAuthorBooks = async (author: string): Promise<{ available: BookWithFormatted[]; preorder: BookWithFormatted[] }> => {
+    const searchAuthorBooks = async (author: string): Promise<{ available: NewBook[]; preorder: NewBook[] }> => {
       try {
         const books = await searchBooksByAuthor(author, 30);
         
-        const authorAvailableBooks: BookWithFormatted[] = [];
-        const authorPreorderBooks: BookWithFormatted[] = [];
-        
-        for (const book of books) {
-          const normalizedIsbn = book.isbn.replace(/[-\s]/g, '');
-          if (userIsbns.has(normalizedIsbn)) {
-            continue;
-          }
-
-          const publishDate = parseSalesDate(book.publishDate);
-          
-          const newBook: BookWithFormatted = {
-            ...book,
-            publishDateFormatted: formatPublishDate(book.publishDate),
-          };
-
-          if (publishDate) {
-            if (publishDate <= today) {
-              // 2年前より前の本は除外
-              if (publishDate < twoYearsAgo) {
-                continue;
-              }
-              
-              const newestPublishDate = newestPublishDateByAuthor.get(author);
-              if (newestPublishDate && publishDate < newestPublishDate) {
-                continue;
-              }
-              authorAvailableBooks.push(newBook);
-            } else {
-              authorPreorderBooks.push(newBook);
-            }
-          }
-        }
-
-        return { available: authorAvailableBooks, preorder: authorPreorderBooks };
+        return classifyAuthorBooks(author, books, userBooks, today);
       } catch (error) {
         console.log(`Background preload: skipping author ${author} due to error`);
         return { available: [], preorder: [] };

@@ -21,81 +21,13 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { showAlert } from '@/utils/alert';
 import { getUserId } from '@/utils/firebase-auth';
 import { subscribeUserBooks, type BookData } from '@/utils/firebase-books';
-import { searchBooksByAuthor, type Book } from '@/utils/rakuten-api';
+import { classifyAuthorBooks, parseSalesDate, type NewBook } from '@/utils/new-books';
+import { searchBooksByAuthor } from '@/utils/rakuten-api';
 
 type TabType = 'available' | 'preorder';
 
-interface NewBook extends Book {
-  publishDateFormatted?: string;
-}
-
 // キャッシュ用オブジェクト
-const dateParseCache = new Map<string, Date | null>();
 const authorSearchCache = new Map<string, { available: NewBook[]; preorder: NewBook[] }>();
-
-/**
- * 楽天APIのsalesDateをDateオブジェクトに変換（キャッシュ機能付き）
- * 形式は "YYYY年MM月DD日" や "YYYYMMDD" など様々な可能性がある
- */
-function parseSalesDate(salesDate?: string): Date | null {
-  if (!salesDate) return null;
-
-  // キャッシュをチェック
-  if (dateParseCache.has(salesDate)) {
-    return dateParseCache.get(salesDate) ?? null;
-  }
-
-  try {
-    // "YYYY年MM月DD日" 形式を試す
-    const match1 = salesDate.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/);
-    if (match1) {
-      const year = parseInt(match1[1], 10);
-      const month = parseInt(match1[2], 10) - 1; // 月は0ベース
-      const day = parseInt(match1[3], 10);
-      const result = new Date(year, month, day);
-      dateParseCache.set(salesDate, result);
-      return result;
-    }
-
-    // "YYYYMMDD" 形式を試す
-    if (/^\d{8}$/.test(salesDate)) {
-      const year = parseInt(salesDate.substring(0, 4), 10);
-      const month = parseInt(salesDate.substring(4, 6), 10) - 1;
-      const day = parseInt(salesDate.substring(6, 8), 10);
-      const result = new Date(year, month, day);
-      dateParseCache.set(salesDate, result);
-      return result;
-    }
-
-    // その他の形式はDateコンストラクタに任せる
-    const date = new Date(salesDate);
-    if (!isNaN(date.getTime())) {
-      dateParseCache.set(salesDate, date);
-      return date;
-    }
-  } catch (error) {
-    console.error('Error parsing sales date:', salesDate, error);
-  }
-
-  dateParseCache.set(salesDate, null);
-  return null;
-}
-
-/**
- * 発売日をフォーマット
- */
-function formatPublishDate(salesDate?: string): string {
-  if (!salesDate) return '';
-  
-  const date = parseSalesDate(salesDate);
-  if (!date) return salesDate;
-
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  
-  return `${year}年${month}月${day}日`;
-}
 
 export default function NewScreen() {
   const colorScheme = useColorScheme();
@@ -211,37 +143,9 @@ export default function NewScreen() {
           return;
         }
 
-        // ユーザーが登録している本のISBNセット（高速検索用）
-        const userIsbns = new Set<string>();
-        userBooks.forEach((book) => {
-          if (book.isbn) {
-            userIsbns.add(book.isbn.replace(/[-\s]/g, ''));
-          }
-        });
-
-        // 著者ごとの最も新しい（最近の）登録済み本の発売日を計算
-        const newestPublishDateByAuthor = new Map<string, Date>();
-        userBooks.forEach((book) => {
-          if (!book.author || !book.author.trim()) return;
-          
-          const author = book.author.trim();
-          const publishDate = parseSalesDate(book.publishDate);
-          
-          if (publishDate) {
-            const currentNewest = newestPublishDateByAuthor.get(author);
-            if (!currentNewest || publishDate > currentNewest) {
-              newestPublishDateByAuthor.set(author, publishDate);
-            }
-          }
-        });
-
         // 現在の日付（時刻部分を0時0分0秒に設定）
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
-        // 2年前の日付を計算
-        const twoYearsAgo = new Date(today);
-        twoYearsAgo.setFullYear(today.getFullYear() - 2);
 
         const allAvailableBooks: NewBook[] = [];
         const allPreorderBooks: NewBook[] = [];
@@ -267,52 +171,7 @@ export default function NewScreen() {
           try {
             const books = await searchBooksByAuthor(author, 30);
             
-            const authorAvailableBooks: NewBook[] = [];
-            const authorPreorderBooks: NewBook[] = [];
-            
-            for (const book of books) {
-              // 本棚に登録されていない書籍のみを対象
-              const normalizedIsbn = book.isbn.replace(/[-\s]/g, '');
-              if (userIsbns.has(normalizedIsbn)) {
-                continue;
-              }
-
-              // 発売日をパース
-              const publishDate = parseSalesDate(book.publishDate);
-              
-              const newBook: NewBook = {
-                ...book,
-                publishDateFormatted: formatPublishDate(book.publishDate),
-              };
-
-              if (publishDate) {
-                // 発売日が今日以前 → 発売済み
-                if (publishDate <= today) {
-                  // 2年前より前の本は除外
-                  if (publishDate < twoYearsAgo) {
-                    continue;
-                  }
-                  
-                  // ユーザーの登録済み本の最も新しい発売日より前の本は除外
-                  const newestPublishDate = newestPublishDateByAuthor.get(author);
-                  if (newestPublishDate && publishDate < newestPublishDate) {
-                    // この著者の最も新しい登録済み本の発売日より前なので除外
-                    continue;
-                  }
-                  authorAvailableBooks.push(newBook);
-                } else {
-                  // 発売日が今日より後 → 予約販売中（登録済み本の発売日チェックは不要）
-                  authorPreorderBooks.push(newBook);
-                }
-              } else {
-                // 発売日が不明な場合は発売済みとして扱うが、
-                // 登録済み本の発売日チェックができないため除外
-                // （発売日が不明な本は表示しない）
-                continue;
-              }
-            }
-
-            const result = { available: authorAvailableBooks, preorder: authorPreorderBooks };
+            const result = classifyAuthorBooks(author, books, userBooks, today);
             authorSearchCache.set(author, result);
             return result;
           } catch (err: any) {

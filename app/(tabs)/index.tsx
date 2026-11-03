@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import type { Unsubscribe } from 'firebase/firestore';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type ViewStyle } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { ThemedText } from '@/components/themed-text';
@@ -13,6 +13,11 @@ import { createCustomSeriesId, extractBaseTitle, getBooksBySeriesKey, getGrouped
 import { getUserId } from '@/utils/firebase-auth';
 import { subscribeUserBooks, updateBook, type BookData } from '@/utils/firebase-books';
 import { showAlert } from '@/utils/alert';
+
+// Safariの画像保存メニューとブラウザの選択操作が長押しを奪うのを防ぐ。
+const bookInteractionStyle = Platform.OS === 'web'
+  ? { userSelect: 'none', WebkitTouchCallout: 'none' } as ViewStyle
+  : undefined;
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -28,6 +33,22 @@ export default function HomeScreen() {
   // シリーズ化モード用のstate（長押しで選択 → 別の本をタップでシリーズ化）
   const [isSeriesMode, setIsSeriesMode] = useState(false);
   const [selectedBookForSeries, setSelectedBookForSeries] = useState<BookData | null>(null);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    // Textなどの子要素にも適用し、iOSの選択ハンドルを表示させない。
+    const style = document.createElement('style');
+    style.textContent = `
+      #home-book-grid, #home-book-grid * {
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => style.remove();
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -279,8 +300,12 @@ export default function HomeScreen() {
 
     return (
       <Pressable
+        {...(Platform.OS === 'web' ? {
+          onContextMenu: (event: { preventDefault: () => void }) => event.preventDefault(),
+        } : {})}
         style={({ pressed }) => [
           styles.bookItem,
+          bookInteractionStyle,
           pressed && styles.bookItemPressed,
           isSelected && styles.selectedForSeries,
         ]}
@@ -288,7 +313,7 @@ export default function HomeScreen() {
         onLongPress={() => handleLongPress(item)}
         delayLongPress={500}>
         {item.imageUrl ? (
-          <View style={styles.thumbnailContainer}>
+          <View pointerEvents="none" style={styles.thumbnailContainer}>
             <Image
               source={{ uri: item.imageUrl }}
               style={styles.bookThumbnail}
@@ -583,6 +608,7 @@ export default function HomeScreen() {
       </View>
 
       <FlatList
+        nativeID="home-book-grid"
         data={groupedBooks}
         renderItem={renderBookItem}
         keyExtractor={(item) => item.id || item.isbn}
