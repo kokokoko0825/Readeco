@@ -539,7 +539,7 @@ export async function searchBooksByQuery(
  * 著者名を比較用に正規化（半角・全角スペースを除去）
  * 例: "東野 圭吾" → "東野圭吾"
  */
-function normalizeAuthor(author: string): string {
+export function normalizeAuthor(author: string): string {
   return author.replace(/[\s\u3000]/g, "");
 }
 
@@ -567,7 +567,9 @@ export async function searchBooksByAuthor(
       applicationId: applicationId,
       accessKey: accessKey,
       format: "json",
-      author: author,
+      // "日下秀憲/山本サトシ" のような複数著者をそのまま渡すと0件になるため、
+      // スペース区切り（AND検索）に変換する
+      author: author.replace(/[/／]/g, " "),
       hits: Math.min(maxResults, 30).toString(),
       sort: "-releaseDate",
     });
@@ -586,7 +588,10 @@ export async function searchBooksByAuthor(
 
     const normalizedAuthor = normalizeAuthor(author);
     return data.Items.map(({ Item }) => toBook(Item)).filter(
-      (book) => normalizeAuthor(book.author) === normalizedAuthor,
+      (book) =>
+        normalizeAuthor(book.author) === normalizedAuthor &&
+        // 全巻セット（例: "【全巻】 呪術廻戦 0-30巻セット"、"【全巻 】ポケットモンスターSPECIAL 41〜43巻"）は新刊ではないため除外
+        !/【\s*全巻\s*】/.test(book.title),
     );
   } catch (error) {
     console.error("Error fetching books by author:", error);
