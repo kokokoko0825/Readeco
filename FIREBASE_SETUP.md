@@ -81,10 +81,23 @@ service cloud.firestore {
         request.auth.uid == resource.data.userId;
     }
     
-    // ユーザー設定（認証済みユーザーのみアクセス可能）
+    // メールアドレス等を含むユーザー設定は本人だけがアクセス可能
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // フレンド検索用。最新のポリシーは firebase/user-profile.rules を参照
+    match /publicProfiles/{userId} {
+      allow get: if request.auth != null;
+      allow list: if false;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasAll(['userId', 'displayName'])
+        && request.resource.data.keys().hasOnly(['userId', 'displayName'])
+        && request.resource.data.userId == userId
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0;
+      allow delete: if request.auth != null && request.auth.uid == userId;
     }
     
     // フレンド関係（認証済みユーザーのみアクセス可能）
@@ -97,6 +110,8 @@ service cloud.firestore {
 ```
 
 **注意**: これらのセキュリティルールは、Firebase Authenticationを使用していることを前提としています。
+
+既存環境に反映する際は、`users` の表示名を `publicProfiles` へ移行してから検索先を切り替えてください。公開先に保存するフィールドは `userId` と `displayName` の2つだけです。ユーザー情報用のルールとテストは `firebase/user-profile.rules`、`tests/firestore-users.cjs` を参照してください。このファイルはユーザー情報部分のポリシーなので、既存の他コレクションのルールと統合してデプロイします。Java と Firebase CLI を用意し、`pnpm test:firestore` で認可テストを実行できます。
 
 ## 5. アプリへの設定
 

@@ -194,26 +194,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
           const userId = user.uid;
           const existingSettings = await getUserSettings(userId);
           
-          if (!existingSettings) {
-            await setUserSettings(userId, {
-              displayName: user.displayName || 'ユーザー',
-              email: user.email,
-              profileImageUrl: user.photoURL,
-            });
-          } else {
-            const needsUpdate = 
-              existingSettings.displayName !== (user.displayName || 'ユーザー') ||
-              existingSettings.email !== user.email ||
-              existingSettings.profileImageUrl !== user.photoURL;
-            
-            if (needsUpdate) {
-              await setUserSettings(userId, {
-                displayName: user.displayName || existingSettings.displayName,
-                email: user.email || existingSettings.email,
-                profileImageUrl: user.photoURL || existingSettings.profileImageUrl,
-              });
-            }
-          }
+          // 既存ユーザーもログイン時に公開プロフィールを同期する。
+          await setUserSettings(userId, {
+            displayName: user.displayName || existingSettings?.displayName || 'ユーザー',
+            email: user.email || existingSettings?.email,
+            profileImageUrl: user.photoURL || existingSettings?.profileImageUrl,
+          });
         } catch (error) {
           console.error('Error syncing user settings:', error);
         }

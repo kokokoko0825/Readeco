@@ -5,9 +5,8 @@
 import {
     doc,
     getDoc,
-    setDoc,
     Timestamp,
-    updateDoc,
+    writeBatch,
     type DocumentData
 } from 'firebase/firestore';
 import { db } from './firebase';
@@ -47,30 +46,23 @@ export async function setUserSettings(
 
     const now = Timestamp.now();
 
-    if (userSnap.exists()) {
-      // 既存ユーザーの更新
-      const updateData: any = {
-        ...settings,
-        updatedAt: now,
-      };
-      // undefinedの値を削除
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
-      });
-      await updateDoc(userRef, updateData);
-    } else {
-      // 新規ユーザーの作成
-      await setDoc(userRef, {
+    const displayName = settings.displayName || userSnap.data()?.displayName || 'ユーザー';
+    const privateData = Object.fromEntries(
+      Object.entries({
         userId,
-        displayName: settings.displayName || 'ユーザー',
+        displayName,
         email: settings.email,
         profileImageUrl: settings.profileImageUrl,
-        createdAt: now,
         updatedAt: now,
-      });
-    }
+        ...(!userSnap.exists() ? { createdAt: now } : {}),
+      }).filter(([, value]) => value !== undefined)
+    );
+
+    // 公開先にはメール等を渡さず、設定と表示名を同じバッチで更新する。
+    const batch = writeBatch(db);
+    batch.set(userRef, privateData, { merge: true });
+    batch.set(doc(db, 'publicProfiles', userId), { userId, displayName });
+    await batch.commit();
   } catch (error) {
     console.error('Error setting user settings:', error);
     throw new Error('ユーザー設定の保存に失敗しました');

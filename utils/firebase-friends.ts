@@ -122,7 +122,7 @@ export async function searchUserByUserId(
   userId: string
 ): Promise<{ userId: string; displayName: string } | null> {
   try {
-    const userRef = doc(db, 'users', userId);
+    const userRef = doc(db, 'publicProfiles', userId);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
@@ -131,7 +131,7 @@ export async function searchUserByUserId(
 
     const data = userSnap.data();
     return {
-      userId: data.userId,
+      userId: userSnap.id,
       displayName: data.displayName,
     };
   } catch (error) {

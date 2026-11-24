@@ -47,3 +47,6 @@ app-example
 /android
 
 .env
+
+# Firebase Emulator logs
+*-debug.log

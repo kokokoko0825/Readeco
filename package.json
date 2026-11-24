@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "web": "EXPO_ROUTER_APP_ROOT=./app expo start --web",
     "lint": "expo lint",
+    "test:firestore": "firebase emulators:exec --config firebase/test.config.json --only firestore --project demo-readeco-users-security 'node tests/firestore-users.cjs'",
     "build:web": "EXPO_ROUTER_APP_ROOT=./app pnpm exec expo export -p web && node ./scripts/copy-assets.js",
     "deploy:pages": "pnpm run build:web && wrangler pages deploy dist",
     "deploy:worker": "wrangler deploy",
@@ -58,6 +59,7 @@
     "react-native-worklets": "0.5.1"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "4.0.1",
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
