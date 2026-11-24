@@ -158,6 +158,20 @@ export function getUserId(): string | null {
   return user ? user.uid : null;
 }
 
+/** 表示名は認証プロフィールとFirestoreの両方に保存する。 */
+export async function updateUserDisplayName(displayName: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('ユーザーがログインしていません');
+  }
+  const name = displayName.trim();
+  if (!name) {
+    throw new Error('表示名を入力してください');
+  }
+  await updateProfile(user, { displayName: name });
+  await setUserSettings(user.uid, { displayName: name });
+}
+
 /**
  * Google認証でサインイン（Web環境用）
  * Firebaseの signInWithPopup を使用

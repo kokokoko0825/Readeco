@@ -27,6 +27,7 @@ import {
   getUserId,
   isGoogleUser,
   signOutUser,
+  updateUserDisplayName,
   updateUserEmail,
   updateUserPassword,
 } from '@/utils/firebase-auth';
@@ -197,7 +198,7 @@ export default function SettingsScreen() {
 
     try {
       setSaving(true);
-      await setUserSettings(userId, { displayName: displayName.trim() });
+      await updateUserDisplayName(displayName);
       const updatedSettings = await getUserSettings(userId);
       if (updatedSettings) {
         setUserSettingsState(updatedSettings);

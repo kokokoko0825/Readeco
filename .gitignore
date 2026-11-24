@@ -50,3 +50,4 @@ app-example
 
 # Firebase Emulator logs
 *-debug.log
+.playwright-mcp/
