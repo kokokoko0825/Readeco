@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
+import { NotificationIcon } from '@/components/NotificationIcon';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Colors } from '@/constants/theme';
@@ -380,6 +381,7 @@ export default function SettingsScreen() {
     showArrow = true,
     danger = false,
     disabled = false,
+    showNotification = false,
   }: {
     icon: IconName;
     label: string;
@@ -388,6 +390,7 @@ export default function SettingsScreen() {
     showArrow?: boolean;
     danger?: boolean;
     disabled?: boolean;
+    showNotification?: boolean;
   }) => (
     <Pressable
       style={[
@@ -397,13 +400,15 @@ export default function SettingsScreen() {
       ]}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${label}${value ? `、${value}` : ''}`}
+      accessibilityLabel={`${label}${value ? `、${value}` : ''}${showNotification ? '、新しいお知らせがあります' : ''}`}
       disabled={disabled}>
       <View style={styles.settingItemLeft}>
-        <Icon
+        <NotificationIcon
           name={icon}
           size={22}
           color={danger ? '#E53935' : Colors[colorScheme ?? 'light'].text}
+          showDot={showNotification}
+          surfaceColor={cardBg}
           style={styles.settingItemIcon}
         />
         <ThemedText
@@ -632,7 +637,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="article"
               label="リリースノート"
-              value={hasNewReleases ? '新着' : undefined}
+              showNotification={hasNewReleases}
               onPress={showReleaseNotes}
             />
             <SettingItem

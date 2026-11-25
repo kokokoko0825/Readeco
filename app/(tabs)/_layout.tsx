@@ -3,6 +3,7 @@ import React from 'react';
 
 import { HapticTab } from '@/components/haptic-tab';
 import { Icon } from '@/components/Icon';
+import { NotificationIcon } from '@/components/NotificationIcon';
 import { Colors } from '@/constants/theme';
 import { useReleaseNotes } from '@/contexts/ReleaseNotesContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -15,7 +16,7 @@ export default function TabLayout() {
   const headerStyle = {
     backgroundColor: Colors[colorScheme ?? 'light'].background,
     borderBottomWidth: 1,
-    borderBottomColor: isDark ? '#9DA348' : '#838A2D',
+    borderBottomColor: Colors[colorScheme ?? 'light'].accent,
   };
 
   const headerTitleStyle = {
@@ -92,9 +93,16 @@ export default function TabLayout() {
         name="Settings"
         options={{
           title: '設定',
-          tabBarBadge: hasNewReleases ? '新着' : undefined,
           tabBarAccessibilityLabel: hasNewReleases ? '設定、新しいリリースノートがあります' : '設定',
-          tabBarIcon: ({ color }) => <Icon name="settings" size={43} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <NotificationIcon
+              name="settings"
+              size={43}
+              color={color}
+              showDot={hasNewReleases}
+              surfaceColor={Colors[colorScheme ?? 'light'].tabBarBackground}
+            />
+          ),
         }}
       />
     </Tabs>
