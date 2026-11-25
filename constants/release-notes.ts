@@ -1,107 +1,25 @@
-/**
- * リリースノートデータ
- *
- * 新しいバージョンをリリースする際は、このファイルの RELEASE_NOTES 配列の
- * 先頭に新しいエントリを追加するだけでOKです。
- *
- * app.json の version は自動的に取得されるため、
- * ここで指定した最新バージョンと app.json の version が一致していれば
- * 自動的にリリースノートが表示されます。
- */
+/** 告知の正本は release-notes.json。運用は docs/RELEASE_NOTES_GUIDE.md を参照。 */
+import notes from './release-notes.json';
 
-import appConfig from '../app.json';
+export type ReleaseChangeType = 'added' | 'improved' | 'fixed' | 'removed';
 
 export interface ReleaseNote {
-  version: string;
+  id: string;
+  sequence: number;
+  title: string;
   date: string;
-  changes: string[];
+  /** 技術的な版の対応情報。告知の表示条件には使わない。 */
+  version?: string;
+  notification: 'badge' | 'none';
+  changes: { type: ReleaseChangeType; text: string }[];
 }
 
-/**
- * リリースノートデータ
- * 新しいバージョンは配列の先頭に追加してください
- */
-export const RELEASE_NOTES: ReleaseNote[] = [
-  {
-    version: '1.1.9',
-    date: '2026-11-03',
-    changes: [
-      '修正: 本を登録・登録解除した際に、新刊ページへ正しく反映されない問題を修正しました。',
-    ],
-  },
-  {
-    version: '1.1.8',
-    date: '2026-11-03',
-    changes: [
-      '改善: 途中で購入をやめたシリーズ（最新巻の発売から60日以上未購入）を、新刊ページに表示しないようにしました。',
-    ],
-  },
-  {
-    version: '1.1.7',
-    date: '2026-11-03',
-    changes: [
-      '改善: 新刊ページに全巻セットが表示されないようにしました。',
-    ],
-  },
-  {
-    version: '1.1.6',
-    date: '2026-11-03',
-    changes: [
-      '修正: 複数の著者による漫画などが、予約販売中に表示されなくなっていた問題を修正しました。',
-    ],
-  },
-  {
-    version: '1.1.5',
-    date: '2026-11-03',
-    changes: [
-      '修正: 新刊ページで、発売日を迎えた新刊が「発売中」に表示されない場合がある問題を修正しました。',
-      '改善: 新刊を発売日の新しい順に探すようにし、著者名のスペースの有無による取りこぼしを減らしました。',
-    ],
-  },
-  {
-    version: '1.1.4',
-    date: '2026-10-14',
-    changes: [
-      '修正: ホームで本を長押しした際に、画像の保存・共有メニューが表示される問題を修正しました。',
-      '修正: 本を長押しした際に、テキスト選択の青いハンドルが表示される問題を修正しました。',
-      '本を長押ししてから別の本をタップすると、グループにまとめられます。',
-    ],
-  },
-  {
-    version: '1.1.3',
-    date: '2026-07-04',
-    changes: [
-      'バグ修正: 楽天ブックスAPIの新エンドポイントに対応し、本の検索・新刊情報の取得を復旧しました。',
-      '改善: 楽天APIの新認証方式（accessKey）に対応しました。',
-    ],
-  },
-];
+// JSONの構造・重複・並び順はビルド前のcheck:releasesで検証する。
+export const RELEASE_NOTES = notes as readonly ReleaseNote[];
 
-/**
- * 現在のアプリバージョン（app.json から自動取得）
- */
-export const APP_VERSION = appConfig.expo.version;
-
-/**
- * 最新のリリースノートバージョン
- */
-export const LATEST_RELEASE_VERSION = RELEASE_NOTES[0]?.version || '1.0.0';
-
-/**
- * 指定バージョンのリリースノートを取得
- */
-export function getReleaseNoteByVersion(version: string): ReleaseNote | undefined {
-  return RELEASE_NOTES.find((note) => note.version === version);
-}
-
-/**
- * 指定バージョン以降のリリースノートを取得（新しい順）
- */
-export function getReleaseNotesSince(version: string): ReleaseNote[] {
-  const index = RELEASE_NOTES.findIndex((note) => note.version === version);
-  if (index === -1) {
-    // バージョンが見つからない場合は全て返す
-    return RELEASE_NOTES;
-  }
-  return RELEASE_NOTES.slice(0, index);
-}
+export const RELEASE_CHANGE_LABELS: Record<ReleaseChangeType, string> = {
+  added: '新機能',
+  improved: '改善',
+  fixed: '修正',
+  removed: '提供終了',
+};

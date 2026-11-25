@@ -18,12 +18,14 @@ interface AuthGuardProps {
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { loading, isAuthenticated } = useAuth();
   const pathname = usePathname();
   const colorScheme = useColorScheme();
+  // 告知は公開情報。共有URLからログインなしでも読める。
+  const isPublicRoute = pathname === '/updates';
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
+    if (!loading && !isAuthenticated && !isPublicRoute) {
       // 認証画面以外の場合は認証画面にリダイレクト
       if (pathname !== '/auth' && !pathname.startsWith('/auth')) {
         router.replace('/auth');
@@ -32,7 +34,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
       // 認証済みで認証画面にいる場合はメイン画面にリダイレクト
       router.replace('/(tabs)');
     }
-  }, [loading, isAuthenticated, pathname]);
+  }, [loading, isAuthenticated, pathname, isPublicRoute]);
 
   // ローディング中
   if (loading) {
@@ -47,7 +49,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   }
 
   // 認証されていない場合は認証画面にリダイレクト（既にリダイレクト処理中）
-  if (!isAuthenticated && pathname !== '/auth') {
+  if (!isAuthenticated && pathname !== '/auth' && !isPublicRoute) {
     return (
       <ThemedView style={styles.container}>
         <View style={styles.loadingContainer}>

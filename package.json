@@ -1,7 +1,7 @@
 {
   "name": "readeco",
   "main": "expo-router/entry",
-  "version": "1.1.9",
+  "version": "1.1.10",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -10,10 +10,13 @@
     "web": "EXPO_ROUTER_APP_ROOT=./app expo start --web",
     "lint": "expo lint",
     "test:firestore": "firebase emulators:exec --config firebase/test.config.json --only firestore --project demo-readeco-users-security 'node tests/firestore-users.cjs'",
-    "build:web": "EXPO_ROUTER_APP_ROOT=./app pnpm exec expo export -p web && node ./scripts/copy-assets.js",
+    "build:web": "pnpm run check:releases && EXPO_ROUTER_APP_ROOT=./app pnpm exec expo export -p web && node ./scripts/copy-assets.js",
     "deploy:pages": "pnpm run build:web && wrangler pages deploy dist",
     "deploy:worker": "wrangler deploy",
-    "deploy": "pnpm run deploy:pages"
+    "deploy": "pnpm run deploy:pages",
+    "check:releases": "node scripts/check-release-notes.cjs",
+    "test:releases": "node --test tests/release-notes.cjs",
+    "release:notes": "node scripts/print-release-notes.cjs"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

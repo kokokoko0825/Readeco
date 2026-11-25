@@ -1,0 +1,134 @@
+[
+  {
+    "id": "20261125-release-history",
+    "sequence": 8,
+    "title": "更新履歴をいつでも確認できるようになりました",
+    "date": "2026-11-25",
+    "version": "1.1.10",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "added",
+        "text": "設定の「リリースノート」から、過去の更新内容をまとめて確認できます。"
+      },
+      {
+        "type": "improved",
+        "text": "新しいお知らせは設定の新着マークでお知らせします。読書中にリリースノートが自動で開くことはなくなりました。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.9",
+    "sequence": 7,
+    "title": "本の登録・登録解除を新刊ページに反映",
+    "date": "2026-11-03",
+    "version": "1.1.9",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "fixed",
+        "text": "本を登録・登録解除した際に、新刊ページへ正しく反映されない問題を修正しました。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.8",
+    "sequence": 6,
+    "title": "新刊ページに表示するシリーズを改善",
+    "date": "2026-11-03",
+    "version": "1.1.8",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "improved",
+        "text": "途中で購入をやめたシリーズ（最新巻の発売から60日以上未購入）を、新刊ページに表示しないようにしました。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.7",
+    "sequence": 5,
+    "title": "新刊ページから全巻セットを除外",
+    "date": "2026-11-03",
+    "version": "1.1.7",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "improved",
+        "text": "新刊ページに全巻セットが表示されないようにしました。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.6",
+    "sequence": 4,
+    "title": "複数著者の本を予約販売中に表示",
+    "date": "2026-11-03",
+    "version": "1.1.6",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "fixed",
+        "text": "複数の著者による漫画などが、予約販売中に表示されなくなっていた問題を修正しました。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.5",
+    "sequence": 3,
+    "title": "新刊の発売日と著者検索を改善",
+    "date": "2026-11-03",
+    "version": "1.1.5",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "fixed",
+        "text": "新刊ページで、発売日を迎えた新刊が「発売中」に表示されない場合がある問題を修正しました。"
+      },
+      {
+        "type": "improved",
+        "text": "新刊を発売日の新しい順に探すようにし、著者名のスペースの有無による取りこぼしを減らしました。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.4",
+    "sequence": 2,
+    "title": "本の長押し操作を改善",
+    "date": "2026-10-14",
+    "version": "1.1.4",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "fixed",
+        "text": "ホームで本を長押しした際に、画像の保存・共有メニューが表示される問題を修正しました。"
+      },
+      {
+        "type": "fixed",
+        "text": "本を長押しした際に、テキスト選択の青いハンドルが表示される問題を修正しました。"
+      },
+      {
+        "type": "improved",
+        "text": "本を長押ししてから別の本をタップすると、グループにまとめられます。"
+      }
+    ]
+  },
+  {
+    "id": "legacy-1.1.3",
+    "sequence": 1,
+    "title": "本の検索と新刊情報の取得を復旧",
+    "date": "2026-07-04",
+    "version": "1.1.3",
+    "notification": "badge",
+    "changes": [
+      {
+        "type": "fixed",
+        "text": "楽天ブックスAPIの新エンドポイントに対応し、本の検索・新刊情報の取得を復旧しました。"
+      },
+      {
+        "type": "improved",
+        "text": "楽天APIの新認証方式（accessKey）に対応しました。"
+      }
+    ]
+  }
+]

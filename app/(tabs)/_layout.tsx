@@ -4,10 +4,12 @@ import React from 'react';
 import { HapticTab } from '@/components/haptic-tab';
 import { Icon } from '@/components/Icon';
 import { Colors } from '@/constants/theme';
+import { useReleaseNotes } from '@/contexts/ReleaseNotesContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const { hasNewReleases } = useReleaseNotes();
 
   const isDark = colorScheme === 'dark';
   const headerStyle = {
@@ -90,6 +92,8 @@ export default function TabLayout() {
         name="Settings"
         options={{
           title: '設定',
+          tabBarBadge: hasNewReleases ? '新着' : undefined,
+          tabBarAccessibilityLabel: hasNewReleases ? '設定、新しいリリースノートがあります' : '設定',
           tabBarIcon: ({ color }) => <Icon name="settings" size={43} color={color} />,
         }}
       />

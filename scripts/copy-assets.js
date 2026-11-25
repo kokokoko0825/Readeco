@@ -1,5 +1,8 @@
+/* global __dirname */
 const fs = require('fs');
 const path = require('path');
+const { version } = require('../package.json');
+const { writeServiceWorker } = require('./write-service-worker.cjs');
 
 // SEO設定
 const SEO_CONFIG = {
@@ -82,7 +85,7 @@ function copyAssets() {
   console.log('✓ Asset copy completed!');
 
   // PWA用のファイルをコピー（webフォルダにある場合）
-  ['manifest.json', 'service-worker.js'].forEach((file) => {
+  ['manifest.json'].forEach((file) => {
     const srcPath = path.join(webDir, file);
     const destPath = path.join(distDir, file);
 
@@ -237,7 +240,7 @@ if ('serviceWorker' in navigator) {
     "applicationCategory": "LifestyleApplication",
     "operatingSystem": "Web, Android, iOS",
     "browserRequirements": "Requires JavaScript. Requires HTML5.",
-    "softwareVersion": "1.0.0",
+    "softwareVersion": "${version}",
     "offers": {
       "@type": "Offer",
       "price": "0",
@@ -404,6 +407,11 @@ try {
   updateManifest();
   createRobotsTxt();
   createSitemap();
+  const buildId = writeServiceWorker(
+    path.join(__dirname, '..', 'dist'),
+    path.join(__dirname, '..', 'web', 'service-worker.js')
+  );
+  console.log(`Service Worker build: ${buildId}`);
   console.log('✓ All assets, SEO tags, and files updated!');
 } catch (error) {
   console.error('Error:', error);

@@ -1,4 +1,5 @@
-const CACHE_NAME = 'readeco-pwa-v9';
+// build:webで最終配信ファイルのハッシュに置換する。手動で版を上げない。
+const CACHE_NAME = 'readeco-pwa-__READECO_BUILD_ID__';
 const OFFLINE_ASSETS = [
   '/',
   '/manifest.json',
@@ -16,7 +17,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+      Promise.all(keys.filter((key) => key.startsWith('readeco-pwa-') && key !== CACHE_NAME).map((key) => caches.delete(key)))
     )
   );
   self.clients.claim();

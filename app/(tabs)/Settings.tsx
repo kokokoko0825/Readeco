@@ -1,4 +1,4 @@
-import { APP_VERSION } from '@/constants/release-notes';
+import { APP_VERSION } from '@/constants/app';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -87,7 +87,7 @@ const FAQ_DATA = [
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
   const { user } = useAuth();
-  const { showReleaseNotes } = useReleaseNotes();
+  const { showReleaseNotes, hasNewReleases } = useReleaseNotes();
   const [userId, setUserId] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userSettings, setUserSettingsState] = useState<UserSettings | null>(
@@ -396,6 +396,8 @@ export default function SettingsScreen() {
         disabled && styles.settingItemDisabled,
       ]}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}${value ? `、${value}` : ''}`}
       disabled={disabled}>
       <View style={styles.settingItemLeft}>
         <Icon
@@ -630,6 +632,7 @@ export default function SettingsScreen() {
             <SettingItem
               icon="article"
               label="リリースノート"
+              value={hasNewReleases ? '新着' : undefined}
               onPress={showReleaseNotes}
             />
             <SettingItem
